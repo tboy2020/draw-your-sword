@@ -1,4 +1,6 @@
 # Build-only staging (not part of the deployed app)
 _build/
-data/new/
-data/verified/
+# Everything in data/ is staging EXCEPT the two files the app actually loads
+/data/*
+!/data/books.json
+!/data/content.json
