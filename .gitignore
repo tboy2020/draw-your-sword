@@ -1,0 +1,4 @@
+# Build-only staging (not part of the deployed app)
+_build/
+data/new/
+data/verified/

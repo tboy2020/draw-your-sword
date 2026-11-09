@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Draw Your Sword</title>
+<meta name="description" content="Draw Your Sword — a fun Bible game for kids and adults. Sword drills, Bible quizzes, memory verses, books in order and a journey through the whole Bible. Pass-and-play, talks aloud, works offline.">
+<meta name="theme-color" content="#1b1446">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Draw Your Sword">
+<style>
+:root{
+  --font:"Baloo 2","Comic Sans MS","Segoe UI Rounded",-apple-system,system-ui,"Trebuchet MS",sans-serif;
+  --ink:#f4efff; --ink-soft:#c3bbe6; --paper:#fbf6e9; --paper-ink:#3a2f12;
+  --bg1:#241a5c; --bg2:#17123f; --bg3:#3a1d6e;
+  --gold:#f4c430; --gold2:#e8a90c; --steel:#cfd8ff;
+  --pc:#f4c430; --pc-ink:#2a2208; --pc-soft:#fff3cf;
+  --ok:#36c08a; --no:#ff6b8a;
+  --shadow:0 10px 0 rgba(0,0,0,.28), 0 18px 34px rgba(10,6,40,.45);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; margin:0;}
+body{font-family:var(--font); color:var(--ink); text-align:center; overflow-x:hidden;
+  -webkit-user-select:none; user-select:none; touch-action:manipulation;
+  background:
+    radial-gradient(1000px 600px at 12% -8%, #3a2a7e, transparent 60%),
+    radial-gradient(900px 600px at 110% 6%, #5a2a8e, transparent 55%),
+    radial-gradient(1100px 800px at 50% 120%, #2a1a66, transparent 60%),
+    linear-gradient(165deg, var(--bg1), var(--bg2));
+  background-attachment:fixed; min-height:100%;}
+.star{position:fixed; z-index:0; color:#fff; opacity:.5; pointer-events:none; font-size:14px; animation:tw 4s ease-in-out infinite;}
+@keyframes tw{0%,100%{opacity:.2; transform:scale(.8)}50%{opacity:.9; transform:scale(1.15)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@media (prefers-reduced-motion:reduce){.star,.floaty{animation:none} *{animation-duration:.001s !important}}
+.wrap{position:relative; z-index:1; max-width:860px; margin:0 auto; padding:18px 16px 40px;}
+.screen{display:none; animation:pop .25s ease;}
+.screen.active{display:block;}
+@keyframes pop{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
+h1.brand{font-size:clamp(34px,10vw,62px); line-height:1; margin:.1em 0 0;
+  background:linear-gradient(90deg,#fff,#ffe9a8,#f4c430,#fff); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 4px 10px rgba(244,196,48,.35));}
+.sword{font-size:clamp(54px,16vw,104px); line-height:1; margin:6px 0 0; animation:float 5s ease-in-out infinite;}
+.verse-sub{color:var(--ink-soft); font-size:clamp(13px,3.6vw,16px); margin:.5em auto 0; max-width:520px; font-style:italic;}
+p.lead{color:var(--ink-soft); font-size:clamp(15px,4vw,19px); margin:.6em auto 1.1em; max-width:540px;}
+.btn{font-family:var(--font); font-weight:800; border:0; cursor:pointer; border-radius:999px;
+  padding:15px 24px; font-size:19px; color:#2a2208; background:linear-gradient(180deg,#ffdf7a,var(--gold));
+  box-shadow:0 7px 0 #b9860b, 0 12px 22px rgba(0,0,0,.3); margin:7px; transition:transform .08s, box-shadow .08s;}
+.btn:active{transform:translateY(5px); box-shadow:0 2px 0 #b9860b, 0 6px 12px rgba(0,0,0,.3);}
+.btn.ghost{background:rgba(255,255,255,.08); color:var(--ink); box-shadow:0 5px 0 rgba(0,0,0,.25); border:2px solid rgba(255,255,255,.18);}
+.btn.sm{padding:10px 16px; font-size:16px;}
+.btn.big{padding:18px 30px; font-size:22px; display:block; width:100%; max-width:420px; margin:12px auto;}
+.btn.wide{display:block; width:100%; max-width:460px; margin:10px auto;}
+.row{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;}
+.card{background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.12); border-radius:22px; padding:16px; box-shadow:var(--shadow);}
+.modegrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; margin:14px 0;}
+.mode{display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; cursor:pointer;
+  background:rgba(255,255,255,.07); border:3px solid rgba(255,255,255,.14); border-radius:22px; padding:18px 12px;
+  box-shadow:var(--shadow); transition:transform .08s;}
+.mode:active{transform:translateY(4px);}
+.mode .ico{font-size:44px; line-height:1;}
+.mode b{font-size:18px;}
+.mode small{color:var(--ink-soft); font-size:13px; line-height:1.25;}
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;}
+.turn-banner{font-weight:900; font-size:20px; border-radius:16px; padding:8px 14px; background:var(--pc); color:var(--pc-ink); box-shadow:0 5px 0 rgba(0,0,0,.2);}
+.score-chip{background:rgba(255,255,255,.1); border-radius:999px; padding:6px 12px; font-weight:800; font-size:15px; color:var(--ink);}
+.scoreboard{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:6px 0 12px;}
+.sb{border-radius:999px; padding:5px 11px; font-weight:800; font-size:13px; color:#fff; box-shadow:0 3px 0 rgba(0,0,0,.22);}
+.sb.me{outline:3px solid #fff; outline-offset:1px;}
+.qcard{background:var(--paper); color:var(--paper-ink); border-radius:22px; padding:18px 16px; box-shadow:var(--shadow); margin:8px 0 14px;}
+.qtag{display:inline-block; font-size:12px; font-weight:800; color:#fff; background:var(--pc); border-radius:999px; padding:3px 12px; margin-bottom:8px;}
+.qtext{font-size:clamp(19px,5vw,25px); font-weight:800; line-height:1.25; margin:4px 0 2px;}
+.qref{color:#8a7a52; font-size:14px; margin-top:6px; font-weight:700;}
+.opts{display:grid; grid-template-columns:1fr; gap:10px; margin:8px 0;}
+@media(min-width:520px){.opts.two{grid-template-columns:1fr 1fr;}}
+.opt{font-family:var(--font); font-weight:800; font-size:18px; border:3px solid #e3d6ae; background:#fff; color:#3a2f12;
+  border-radius:16px; padding:15px 14px; cursor:pointer; box-shadow:0 5px 0 #d8c89a; transition:transform .06s;}
+.opt:active{transform:translateY(3px); box-shadow:0 2px 0 #d8c89a;}
+.opt.ok{background:#d9f7ec; border-color:var(--ok); box-shadow:0 5px 0 #2a9e72; color:#0b5d41;}
+.opt.no{background:#ffe1e8; border-color:var(--no); box-shadow:0 5px 0 #d84d6b; color:#8a1733;}
+.opt.dim{opacity:.55;}
+.progress{height:10px; background:rgba(255,255,255,.12); border-radius:999px; overflow:hidden; margin:4px 0 12px;}
+.progress > i{display:block; height:100%; background:linear-gradient(90deg,var(--gold),#ffe9a8); width:0;}
+.feed{min-height:26px; font-weight:800; font-size:18px; margin:4px 0;}
+.feed.ok{color:#9af5cf;} .feed.no{color:#ffb3c4;}
+/* book board */
+.board{display:grid; grid-template-columns:repeat(auto-fill,minmax(86px,1fr)); gap:7px; margin:10px 0;}
+.bk{font-family:var(--font); font-weight:800; font-size:13px; border:2px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08);
+  color:var(--ink); border-radius:12px; padding:9px 5px; cursor:pointer; line-height:1.1; box-shadow:0 3px 0 rgba(0,0,0,.22);}
+.bk:active{transform:translateY(2px);}
+.bk.ok{background:#1f8a5c; border-color:#8af5cf;}
+.bk.no{background:#9e2a42; border-color:#ffb3c4;}
+.bk.sec{opacity:.55; font-size:11px;}
+.ordtray{display:flex; flex-wrap:wrap; gap:7px; justify-content:center; min-height:44px; padding:8px; border:2px dashed rgba(255,255,255,.2); border-radius:14px; margin:8px 0;}
+.ordpick{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; margin:8px 0;}
+.chip{font-weight:800; font-size:14px; border-radius:12px; padding:9px 8px; background:rgba(255,255,255,.1); border:2px solid rgba(255,255,255,.16); color:var(--ink); cursor:pointer; box-shadow:0 3px 0 rgba(0,0,0,.22);}
+.chip.num{background:var(--gold); color:#2a2208;}
+/* overlays */
+.overlay{position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; padding:18px;
+  background:rgba(12,8,34,.72); backdrop-filter:blur(3px);}
+.overlay.show{display:flex;}
+.sheet{background:linear-gradient(170deg,#2b2066,#1b1446); border:3px solid rgba(255,255,255,.14); border-radius:24px; padding:22px; max-width:440px; width:100%; box-shadow:var(--shadow); max-height:88vh; overflow:auto;}
+.sheet h2{margin:.1em 0 .4em; font-size:26px;}
+.pill{display:inline-block; background:rgba(255,255,255,.1); border-radius:999px; padding:5px 12px; margin:4px; font-weight:800; font-size:14px;}
+.pass-big{font-size:60px; margin:6px 0;}
+input,select{font-family:var(--font); font-size:17px; padding:11px 13px; border-radius:13px; border:2px solid rgba(255,255,255,.2); background:rgba(255,255,255,.95); color:#24204a; width:100%; margin:5px 0;}
+label.lb{display:block; text-align:left; font-weight:800; color:var(--ink-soft); font-size:14px; margin-top:8px;}
+.plist{display:flex; flex-direction:column; gap:8px; margin:8px 0;}
+.prow{display:flex; gap:8px; align-items:center;}
+.prow input{margin:0;}
+.swatch{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:4px 0;}
+.sw{width:30px; height:30px; border-radius:50%; cursor:pointer; border:3px solid transparent;}
+.sw.sel{border-color:#fff; transform:scale(1.12);}
+.tierseg{display:flex; gap:4px; background:rgba(0,0,0,.2); border-radius:999px; padding:3px;}
+.tierseg button{flex:1; font-family:var(--font); font-weight:800; font-size:12px; border:0; background:transparent; color:var(--ink-soft); padding:7px 4px; border-radius:999px; cursor:pointer;}
+.tierseg button.on{background:var(--gold); color:#2a2208;}
+.toggle{display:inline-flex; gap:4px; background:rgba(0,0,0,.25); border-radius:999px; padding:3px;}
+.toggle button{font-family:var(--font); font-weight:800; font-size:14px; border:0; background:transparent; color:var(--ink-soft); padding:8px 16px; border-radius:999px; cursor:pointer;}
+.toggle button.on{background:var(--gold); color:#2a2208;}
+.secgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; margin:10px 0;}
+.seccard{display:flex; flex-direction:column; align-items:center; gap:3px; border-radius:18px; padding:14px 8px; cursor:pointer; color:#fff; box-shadow:var(--shadow); border:3px solid rgba(255,255,255,.18);}
+.seccard .e{font-size:34px;} .seccard b{font-size:15px; line-height:1.1;} .seccard small{font-size:11px; opacity:.9;}
+.seccard.locked{filter:grayscale(.7) brightness(.7); cursor:default;}
+.seccard .st{font-size:12px; font-weight:800; margin-top:3px;}
+.toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); background:#2a2066; border:2px solid var(--gold); color:#fff; font-weight:800; padding:11px 18px; border-radius:999px; opacity:0; transition:.25s; z-index:60; box-shadow:var(--shadow);}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+.linkrow{margin-top:14px;}
+.linkrow a,.linkrow button{color:var(--ink-soft); font-size:14px; text-decoration:underline; background:none; border:0; cursor:pointer; font-family:var(--font); margin:0 7px;}
+.badge{display:inline-block; background:rgba(244,196,48,.18); border:2px solid var(--gold); border-radius:999px; padding:5px 12px; font-weight:800; font-size:13px; margin:3px;}
+.statline{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.1); font-size:15px;}
+.statline b{color:var(--gold);}
+footer.credit{color:var(--ink-soft); font-size:12px; margin-top:22px; opacity:.8;}
+canvas#confetti{position:fixed; inset:0; pointer-events:none; z-index:50;}
+.muted{color:var(--ink-soft); font-size:13px;}
+.timerbar{font-weight:900; font-size:22px; color:var(--gold);}
+</style>
+</head>
+<body>
+<canvas id="confetti"></canvas>
+
+<div class="wrap">
+
+  <!-- SPLASH -->
+  <section id="splash" class="screen active">
+    <div class="sword">⚔️📖</div>
+    <h1 class="brand">Draw Your Sword</h1>
+    <p class="verse-sub">“Take… the sword of the Spirit, which is the word of God.” — Ephesians 6:17</p>
+    <p class="lead">A fun Bible adventure for kids <b>and</b> grown-ups — drill, quiz, memorize and journey through the whole Bible. 🏕️</p>
+    <button class="btn big" onclick="goPlayers()">▶️ Start</button>
+    <div class="row">
+      <button class="btn ghost sm" onclick="openHow()">❓ How to play</button>
+      <button class="btn ghost sm" onclick="openParents()">📊 Parents / Leaders</button>
+      <button class="btn ghost sm" onclick="openSettings()">⚙️ Settings</button>
+    </div>
+    <div class="linkrow"><a href="https://tboy2020.github.io/Kids-Learning-Arcade/">⬅️ Kids Learning Arcade</a></div>
+    <footer class="credit">Works offline · talks aloud · no ads, private · KJV &amp; WEB (public domain) · Glory to God alone 🙏</footer>
+  </section>
+
+  <!-- PLAYERS -->
+  <section id="players" class="screen">
+    <div class="topbar"><button class="btn ghost sm" onclick="show('splash')">⬅️ Back</button><b>Who's playing?</b><span></span></div>
+    <div class="card">
+      <p class="muted">Play solo, or pass-and-play with up to 6. Pick a level for each player.</p>
+      <div id="plist" class="plist"></div>
+      <button class="btn ghost sm" id="addp" onclick="addPlayer()">➕ Add player</button>
+      <div style="margin-top:12px">
+        <label class="lb">Bible version for verses</label>
+        <div class="toggle" id="verToggle">
+          <button data-v="web" onclick="setVer('web')">WEB (easy)</button>
+          <button data-v="kjv" onclick="setVer('kjv')">KJV (classic)</button>
+        </div>
+      </div>
+      <button class="btn big" onclick="goModes()">Choose a game ▶️</button>
+    </div>
+  </section>
+
+  <!-- MODES -->
+  <section id="modes" class="screen">
+    <div class="topbar"><button class="btn ghost sm" onclick="show('players')">⬅️ Back</button><b>Pick a game</b><span></span></div>
+    <div class="modegrid">
+      <div class="mode" onclick="startMode('quiz')"><div class="ico">🧠</div><b>Bible Quiz</b><small>Questions from every part of the Bible</small></div>
+      <div class="mode" onclick="startMode('drill')"><div class="ico">⚔️</div><b>Sword Drill</b><small>Race to find the book!</small></div>
+      <div class="mode" onclick="startMode('verse')"><div class="ico">✍️</div><b>Finish the Verse</b><small>Memorize God's word</small></div>
+      <div class="mode" onclick="startMode('order')"><div class="ico">🔢</div><b>Books in Order</b><small>Put the books in their place</small></div>
+      <div class="mode" onclick="openCampaign()"><div class="ico">🏕️</div><b>Campaign</b><small>Journey through the whole Bible</small></div>
+      <div class="mode" onclick="startMode('mixed')"><div class="ico">🎲</div><b>Mixed Battle</b><small>A bit of everything</small></div>
+    </div>
+    <p class="muted" id="modeNote"></p>
+  </section>
+
+  <!-- CAMPAIGN MAP -->
+  <section id="campaign" class="screen">
+    <div class="topbar"><button class="btn ghost sm" onclick="show('modes')">⬅️ Back</button><b>🏕️ Campaign</b><span></span></div>
+    <p class="muted">Clear each section to unlock the next. Draw your sword, soldier of Christ! ⚔️</p>
+    <div id="campgrid" class="secgrid"></div>
+    <button class="btn ghost sm" onclick="resetCampaignAsk()">↺ Reset journey</button>
+  </section>
+
+  <!-- PLAY -->
+  <section id="play" class="screen">
+    <div class="topbar">
+      <button class="btn ghost sm" onclick="quitToModes()">⬅️ Quit</button>
+      <span class="turn-banner" id="turnBanner">Player</span>
+      <span class="score-chip" id="scoreChip">0</span>
+    </div>
+    <div class="scoreboard" id="scoreboard"></div>
+    <div class="progress"><i id="progbar"></i></div>
+    <div id="playArea"></div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <!-- SECTION PICKER (for quiz/verse) -->
+  <section id="picksec" class="screen">
+    <div class="topbar"><button class="btn ghost sm" onclick="show('modes')">⬅️ Back</button><b id="pickTitle">Pick a part</b><span></span></div>
+    <div id="secgrid" class="secgrid"></div>
+    <button class="btn wide" onclick="startPicked()">Start ▶️</button>
+    <p class="muted">Tap parts to include them. Tap “All the Bible” for a full mix.</p>
+  </section>
+
+</div>
+
+<!-- PASS overlay -->
+<div class="overlay" id="pass">
+  <div class="sheet" style="text-align:center">
+    <div class="pass-big" id="passEmoji">🤝</div>
+    <h2 id="passTitle">Pass to…</h2>
+    <p class="muted" id="passSub">Hand the device over</p>
+    <button class="btn big" id="passBtn" onclick="beginTurn()">I'm ready ▶️</button>
+  </div>
+</div>
+
+<!-- RESULT overlay -->
+<div class="overlay" id="result">
+  <div class="sheet" style="text-align:center">
+    <div class="pass-big" id="resEmoji">🎉</div>
+    <h2 id="resTitle">Great job!</h2>
+    <div id="resBody"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="resNext" onclick="afterResult()">Next ▶️</button>
+      <button class="btn ghost sm" onclick="quitToModes()">Home</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOW overlay -->
+<div class="overlay" id="how">
+  <div class="sheet">
+    <h2>❓ How to play</h2>
+    <p style="text-align:left">⚔️ <b>Draw Your Sword</b> trains you to know and find God's Word.</p>
+    <ul style="text-align:left; line-height:1.5">
+      <li>🧠 <b>Bible Quiz</b> — answer questions from any part of the Bible.</li>
+      <li>⚔️ <b>Sword Drill</b> — a verse is called; race to tap the right book.</li>
+      <li>✍️ <b>Finish the Verse</b> — choose the right ending and hide God's Word in your heart.</li>
+      <li>🔢 <b>Books in Order</b> — tap the books in their Bible order.</li>
+      <li>🏕️ <b>Campaign</b> — journey section by section through the whole Bible.</li>
+    </ul>
+    <p class="muted" style="text-align:left">Choose a <b>level</b> for each player — 🐣 Recruit (kids), 🛡️ Soldier (tweens/teens), 👑 Champion (adults). Everything works offline and the reference is always shown so you can look it up in your own Bible.</p>
+    <button class="btn big" onclick="closeOverlay('how')">Got it ✨</button>
+  </div>
+</div>
+
+<!-- SETTINGS overlay -->
+<div class="overlay" id="settings">
+  <div class="sheet">
+    <h2>⚙️ Settings</h2>
+    <label class="lb">Talking (read aloud)</label>
+    <div class="toggle" id="sfxVoice"><button data-k="voice" onclick="toggleOpt('voice')">On</button><button data-k="voiceoff" onclick="toggleOpt('voice')">Off</button></div>
+    <label class="lb">Sound effects</label>
+    <div class="toggle" id="sfxSound"><button data-k="sfx" onclick="toggleOpt('sfx')">On</button><button data-k="sfxoff" onclick="toggleOpt('sfx')">Off</button></div>
+    <label class="lb">Bible version</label>
+    <div class="toggle" id="verToggle2">
+      <button data-v="web" onclick="setVer('web')">WEB (easy)</button>
+      <button data-v="kjv" onclick="setVer('kjv')">KJV (classic)</button>
+    </div>
+    <button class="btn big" onclick="closeOverlay('settings')">Done</button>
+  </div>
+</div>
+
+<!-- PARENTS overlay -->
+<div class="overlay" id="parents">
+  <div class="sheet">
+    <div id="pinGate">
+      <h2>📊 Parents / Leaders</h2>
+      <p class="muted">Enter the 4-digit code to see progress. Default is <b>2020</b> — change it below.</p>
+      <input id="pinInput" type="tel" inputmode="numeric" maxlength="4" placeholder="• • • •" style="text-align:center; letter-spacing:8px; font-size:24px">
+      <button class="btn big" onclick="checkPin()">Open</button>
+      <button class="btn ghost sm" onclick="closeOverlay('parents')">Close</button>
+    </div>
+    <div id="pinBody" style="display:none">
+      <h2>📊 Progress</h2>
+      <div id="dashBody"></div>
+      <label class="lb">Change code</label>
+      <input id="newPin" type="tel" inputmode="numeric" maxlength="4" placeholder="new 4-digit code">
+      <button class="btn sm" onclick="savePin()">Save code</button>
+      <button class="btn ghost sm" onclick="closeOverlay('parents')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ Draw Your Sword — engine ============ */
+var $=function(s,r){return (r||document).querySelector(s);};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+function show(id){
+  $$('.screen').forEach(function(s){s.classList.remove('active');});
+  var el=$('#'+id); if(el)el.classList.add('active');
+  // dismiss any overlay-ish leftover
+  window.scrollTo(0,0);
+}
+function openOverlay(id){$('#'+id).classList.add('show');}
+function closeOverlay(id){$('#'+id).classList.remove('show');}
+
+var COLORS=["#f4c430","#36c08a","#4aa3ff","#ff6b8a","#b084ff","#ff9f43","#2dd4bf","#f06595"];
+var TIERS=[{k:"kid",label:"🐣 Recruit"},{k:"teen",label:"🛡️ Soldier"},{k:"adult",label:"👑 Champion"}];
+
+var DATA={books:null, content:null, ready:false};
+var G={players:[], ver:"web", opt:{voice:true, sfx:true}, mode:null, idx:0, turnCount:0, ending:false};
+
+/* ---------- storage ---------- */
+function LS(){ try{return window.localStorage;}catch(e){return null;} }
+function load(k,def){ try{var v=LS().getItem(k); return v==null?def:JSON.parse(v);}catch(e){return def;} }
+function save(k,v){ try{LS().setItem(k,JSON.stringify(v));}catch(e){} }
+
+function getProf(name){
+  var all=load("dys_prof",{}); var key=name.toLowerCase();
+  if(!all[key]) all[key]={name:name, games:0, correct:0, total:0, verses:{}, sections:{}, bestDrill:null};
+  return {all:all,key:key,p:all[key]};
+}
+function saveProf(obj){ obj.all[obj.key]=obj.p; save("dys_prof",obj.all); }
+function recordAnswer(player, section, correct){
+  var o=getProf(player.name); o.p.total++; if(correct)o.p.correct++;
+  if(section){ if(!o.p.sections[section])o.p.sections[section]={c:0,t:0}; o.p.sections[section].t++; if(correct)o.p.sections[section].c++; }
+  saveProf(o);
+}
+function recordVerse(player, ref){ if(!ref)return; var o=getProf(player.name); o.p.verses[ref]=(o.p.verses[ref]||0)+1; saveProf(o); }
+function recordDrill(player, ms){ var o=getProf(player.name); if(o.p.bestDrill==null||ms<o.p.bestDrill)o.p.bestDrill=ms; saveProf(o); }
+function recordGame(player){ var o=getProf(player.name); o.p.games++; saveProf(o); }
+
+/* ---------- audio ---------- */
+var AC=null;
+function unlockAudio(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} if(AC&&AC.state==="suspended")AC.resume(); }
+function beep(freq,dur,type,vol){
+  if(!G.opt.sfx||!AC)return;
+  try{var o=AC.createOscillator(),g=AC.createGain(); o.type=type||"sine"; o.frequency.value=freq;
+    g.gain.value=vol||0.08; o.connect(g); g.connect(AC.destination); var t=AC.currentTime;
+    g.gain.setValueAtTime(vol||0.08,t); g.gain.exponentialRampToValueAtTime(0.0001,t+(dur||0.15));
+    o.start(t); o.stop(t+(dur||0.15));}catch(e){}
+}
+function sndGood(){ beep(660,0.1,"triangle",0.09); setTimeout(function(){beep(990,0.16,"triangle",0.09);},90); }
+function sndBad(){ beep(200,0.18,"sawtooth",0.06); }
+function sndWin(){ [523,659,784,1046].forEach(function(f,i){setTimeout(function(){beep(f,0.18,"triangle",0.1);},i*120);}); }
+function sndTap(){ beep(420,0.05,"square",0.04); }
+
+var VOICES=[];
+function loadVoices(){ try{VOICES=window.speechSynthesis.getVoices()||[];}catch(e){} }
+if(window.speechSynthesis){ loadVoices(); window.speechSynthesis.onvoiceschanged=loadVoices; }
+function speak(text){
+  if(!G.opt.voice||!window.speechSynthesis||!text)return;
+  try{window.speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(text); u.rate=0.98; u.pitch=1.03;
+    var v=VOICES.filter(function(x){return /en[-_]/i.test(x.lang);})[0]; if(v)u.voice=v;
+    window.speechSynthesis.speak(u);}catch(e){}
+}
+function shutUp(){ try{window.speechSynthesis.cancel();}catch(e){} }
+
+/* ---------- misc ---------- */
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;} return a; }
+function toast(msg){ var t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},1700); }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+
+/* ---------- confetti ---------- */
+var cc=$('#confetti'), cx=cc.getContext('2d'), parts=[];
+function sizeCanvas(){ cc.width=innerWidth; cc.height=innerHeight; }
+sizeCanvas(); addEventListener('resize',sizeCanvas);
+function confetti(){ for(var i=0;i<90;i++){parts.push({x:innerWidth/2,y:innerHeight/3,vx:(Math.random()-.5)*9,vy:Math.random()*-9-3,g:.28,c:pick(COLORS),s:Math.random()*7+4,life:70});} if(parts.length)requestAnimationFrame(tick); }
+function tick(){ cx.clearRect(0,0,cc.width,cc.height); for(var i=parts.length-1;i>=0;i--){var p=parts[i]; p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.life--; cx.fillStyle=p.c; cx.fillRect(p.x,p.y,p.s,p.s); if(p.life<=0||p.y>cc.height)parts.splice(i,1);} if(parts.length)requestAnimationFrame(tick); else cx.clearRect(0,0,cc.width,cc.height); }
+
+/* ---------- data load ---------- */
+function loadData(){
+  var done=0, need=2;
+  function fin(){ done++; if(done>=need){ DATA.ready=true; } }
+  fetch('data/books.json').then(function(r){return r.json();}).then(function(j){DATA.books=j; fin();}).catch(function(){DATA.books={sections:[]}; fin();});
+  fetch('data/content.json').then(function(r){return r.ok?r.json():null;}).then(function(j){DATA.content=j||{verses:{},sections:{}}; fin();}).catch(function(){DATA.content={verses:{},sections:{}}; fin();});
+}
+loadData();
+function allBooks(){ var a=[]; if(!DATA.books)return a; DATA.books.sections.forEach(function(s){s.books.forEach(function(b){a.push({name:b.name,abbr:b.abbr,chapters:b.chapters,order:b.order,section:s.id,secName:s.name});});}); return a; }
+function sectionById(id){ return (DATA.books.sections||[]).filter(function(s){return s.id===id;})[0]; }
+function bookOf(ref){ // "John 3:16" -> "John"
+  var m=String(ref).match(/^((?:[1-3]\s)?[A-Za-z][A-Za-z ]*?)\s+\d/); return m?m[1].trim():String(ref).trim();
+}
+
+/* ---------- players setup ---------- */
+function defaultPlayers(){ return [{name:"Player 1", color:COLORS[0], tier:"teen"}]; }
+function renderPlayers(){
+  var box=$('#plist'); box.innerHTML="";
+  G.players.forEach(function(p,i){
+    var row=document.createElement('div'); row.className="card"; row.style.padding="12px";
+    var sw=""; COLORS.forEach(function(c){ sw+='<span class="sw '+(p.color===c?'sel':'')+'" style="background:'+c+'" onclick="setColor('+i+',\''+c+'\')"></span>'; });
+    var seg=""; TIERS.forEach(function(t){ seg+='<button class="'+(p.tier===t.k?'on':'')+'" onclick="setTier('+i+',\''+t.k+'\')">'+t.label+'</button>'; });
+    row.innerHTML='<div class="prow"><input value="'+esc(p.name)+'" oninput="setName('+i+',this.value)" maxlength="14">'+(G.players.length>1?'<button class="btn ghost sm" onclick="delPlayer('+i+')" style="margin:0">✕</button>':'')+'</div>'+
+      '<div class="swatch">'+sw+'</div>'+
+      '<div class="tierseg">'+seg+'</div>';
+    box.appendChild(row);
+  });
+  $('#addp').style.display=G.players.length>=6?"none":"inline-block";
+}
+function addPlayer(){ var used={}; G.players.forEach(function(p){used[p.color]=1;}); var c=COLORS.filter(function(x){return !used[x];})[0]||COLORS[G.players.length%COLORS.length]; G.players.push({name:"Player "+(G.players.length+1), color:c, tier:"teen"}); renderPlayers(); sndTap(); }
+function delPlayer(i){ G.players.splice(i,1); renderPlayers(); }
+function setName(i,v){ G.players[i].name=v||("Player "+(i+1)); }
+function setColor(i,c){ G.players[i].color=c; renderPlayers(); sndTap(); }
+function setTier(i,t){ G.players[i].tier=t; renderPlayers(); sndTap(); }
+function setVer(v){ G.ver=v; save("dys_ver",v); $$('#verToggle button,#verToggle2 button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);}); }
+
+function goPlayers(){ unlockAudio(); if(!G.players.length)G.players=defaultPlayers(); renderPlayers(); setVer(G.ver); show('players'); }
+function goModes(){ if(!G.players.length)G.players=defaultPlayers(); show('modes'); }
+
+/* ---------- options ---------- */
+function toggleOpt(k){ G.opt[k]=!G.opt[k]; save("dys_opt",G.opt); refreshOptUI(); if(k==="sfx"&&G.opt.sfx)sndTap(); }
+function refreshOptUI(){
+  $$('#sfxVoice button').forEach(function(b){var on=b.getAttribute('data-k')==='voice'; b.classList.toggle('on', on===G.opt.voice);});
+  $$('#sfxSound button').forEach(function(b){var on=b.getAttribute('data-k')==='sfx'; b.classList.toggle('on', on===G.opt.sfx);});
+}
+function openHow(){ openOverlay('how'); }
+function openSettings(){ setVer(G.ver); refreshOptUI(); openOverlay('settings'); }
+
+/* ============ MODE DISPATCH ============ */
+function startMode(m){
+  unlockAudio();
+  if(m==='quiz'||m==='verse'){ G.pendingMode=m; openPickSec(); return; }
+  G.mode=m; G.sections=null; beginGame();
+}
+function openPickSec(){
+  $('#pickTitle').textContent = G.pendingMode==='verse' ? "Memory verses — pick parts" : "Bible Quiz — pick parts";
+  var grid=$('#secgrid'); grid.innerHTML="";
+  var all=document.createElement('div'); all.className="seccard"; all.style.background="linear-gradient(160deg,#6d4bd6,#b084ff)"; all.setAttribute('data-sec','ALL');
+  all.innerHTML='<div class="e">📖</div><b>All the Bible</b><small>a full mix</small>'; all.onclick=function(){toggleSecPick('ALL');};
+  grid.appendChild(all);
+  (DATA.books.sections||[]).forEach(function(s){
+    var d=document.createElement('div'); d.className="seccard"; d.style.background="linear-gradient(160deg,"+s.color+","+shade(s.color)+")"; d.setAttribute('data-sec',s.id);
+    d.innerHTML='<div class="e">'+s.emoji+'</div><b>'+esc(s.name)+'</b><small>'+esc(s.sub)+'</small>';
+    d.onclick=function(){toggleSecPick(s.id);};
+    grid.appendChild(d);
+  });
+  G.pickSet={};
+  show('picksec');
+}
+function shade(hex){ return hex; }
+function toggleSecPick(id){
+  sndTap();
+  if(id==='ALL'){ G.pickSet={ALL:1}; }
+  else{ if(G.pickSet.ALL)G.pickSet={}; G.pickSet[id]=!G.pickSet[id]; if(!G.pickSet[id])delete G.pickSet[id]; }
+  $$('#secgrid .seccard').forEach(function(c){ var sec=c.getAttribute('data-sec'); c.style.outline=(G.pickSet[sec])?'4px solid #fff':'none'; c.style.outlineOffset='1px'; });
+}
+function startPicked(){
+  var keys=Object.keys(G.pickSet||{});
+  if(!keys.length){ toast("Tap at least one part"); return; }
+  G.sections = (keys.length===1&&keys[0]==='ALL') ? null : keys.filter(function(k){return k!=='ALL';});
+  if(G.pickSet.ALL)G.sections=null;
+  G.mode=G.pendingMode; beginGame();
+}
+
+/* ============ GAME LOOP ============ */
+function beginGame(){
+  G.turnCount=0; G.ending=false; G.idx=0;
+  G.players.forEach(function(p){p.score=0;});
+  renderScoreboard();
+  startTurn();
+}
+function curPlayer(){ return G.players[G.turnCount % G.players.length]; }
+function setPC(p){ document.documentElement.style.setProperty('--pc',p.color); document.documentElement.style.setProperty('--pc-ink', inkFor(p.color)); }
+function inkFor(hex){ try{var c=hex.substring(1); var r=parseInt(c.substr(0,2),16),g=parseInt(c.substr(2,2),16),b=parseInt(c.substr(4,2),16); return (r*299+g*587+b*114)/1000>150?'#2a2208':'#fff';}catch(e){return '#2a2208';} }
+function renderScoreboard(){
+  var sb=$('#scoreboard'); sb.innerHTML="";
+  G.players.forEach(function(p,i){ var el=document.createElement('span'); el.className="sb"+(i===(G.turnCount%G.players.length)?' me':''); el.style.background=p.color; el.style.color=inkFor(p.color); el.textContent=p.name+" "+(p.score||0); sb.appendChild(el); });
+}
+var ROUND=5; // questions per turn (drill/order fewer)
+function startTurn(){
+  if(G.turnCount>=G.players.length * roundsPerGame()){ return endGame(); }
+  var p=curPlayer(); setPC(p); renderScoreboard();
+  G.ending=false;
+  if(G.players.length===1){ beginTurn(); return; }
+  $('#passEmoji').textContent="🤝"; $('#passTitle').textContent="Pass to "+p.name; $('#passTitle').style.color=p.color;
+  $('#passSub').textContent=TIERS.filter(function(t){return t.k===p.tier;})[0].label+" · Round "+(Math.floor(G.turnCount/G.players.length)+1);
+  openOverlay('pass');
+}
+function roundsPerGame(){ return G.mode==='campaign'?1:2; } // each player gets this many turns
+function beginTurn(){
+  closeOverlay('pass'); unlockAudio();
+  var p=curPlayer();
+  G.turn={ player:p, qs:buildTurnQuestions(p), i:0, correct:0 };
+  show('play');
+  renderTurnHead();
+  nextQuestion();
+}
+function renderTurnHead(){
+  var p=curPlayer();
+  $('#turnBanner').textContent=p.name; $('#turnBanner').style.background=p.color; $('#turnBanner').style.color=inkFor(p.color);
+  $('#scoreChip').textContent=p.score||0;
+}
+function buildTurnQuestions(p){
+  var m=G.mode, n=(m==='drill'||m==='order')?4:ROUND;
+  if(m==='mixed'){ var set=[]; for(var i=0;i<ROUND;i++){ set.push(pick(['quiz','drill','verse'])); } return set.map(function(t){return makeQ(t,p);}); }
+  var arr=[]; for(var j=0;j<n;j++){ arr.push(makeQ(m,p)); } return arr;
+}
+function makeQ(type,p){
+  if(type==='quiz')return makeQuiz(p);
+  if(type==='drill')return makeDrill(p);
+  if(type==='verse')return makeVerse(p);
+  if(type==='order')return makeOrder(p);
+  return makeQuiz(p);
+}
+
+/* ---- question pools ---- */
+function tierRank(t){ return t==='kid'?0:t==='teen'?1:2; }
+function quizPool(p){
+  var secs = G.sections; var out=[];
+  var C=DATA.content.sections||{};
+  var keys = secs||Object.keys(C);
+  keys.forEach(function(k){ (C[k]||[]).forEach(function(q){ q._sec=k; out.push(q); }); });
+  // tier filter: allow own tier and easier; adults can get all
+  var r=tierRank(p.tier);
+  var fit=out.filter(function(q){ return tierRank(q.tier||'teen')<=r; });
+  return fit.length?fit:out;
+}
+function makeQuiz(p){
+  var pool=quizPool(p);
+  if(!pool.length)return {kind:'msg', text:'More quiz questions are on the way! ✨'};
+  var q=pick(pool);
+  var opts=shuffle((q.options||[q.a]).slice(0,4));
+  if(opts.indexOf(q.a)<0){ opts[0]=q.a; opts=shuffle(opts); }
+  return {kind:'quiz', tag:'🧠 Bible Quiz', q:q.q, a:q.a, options:opts, ref:q.ref, section:q._sec, say:q.q};
+}
+function verseList(){
+  var V=DATA.content.verses||{}; var arr=[];
+  Object.keys(V).forEach(function(ref){ var v=V[ref]; var txt=v[G.ver]||v.web||v.kjv; if(txt){ arr.push({ref:ref, text:txt, section:v.section, theme:v.theme}); } });
+  if(G.sections){ var f=arr.filter(function(v){return G.sections.indexOf(v.section)>=0;}); if(f.length)return f; }
+  return arr;
+}
+function makeVerse(p){
+  var list=verseList();
+  if(list.length<4)return {kind:'msg', text:'More memory verses are on the way! ✨'};
+  var v=pick(list);
+  var words=v.text.split(/\s+/);
+  var cut=Math.max(2, Math.ceil(words.length*0.55));
+  if(cut>=words.length) cut=words.length-1;
+  var prompt=words.slice(0,cut).join(' ');
+  var answer=words.slice(cut).join(' ');
+  // distractors: endings of other verses with similar length
+  var others=shuffle(list.filter(function(x){return x.ref!==v.ref;})).slice(0,12);
+  var dis=[];
+  for(var i=0;i<others.length && dis.length<3;i++){ var ow=others[i].text.split(/\s+/); var oc=Math.max(2,Math.ceil(ow.length*0.55)); var oe=ow.slice(oc).join(' '); if(oe && oe!==answer && dis.indexOf(oe)<0) dis.push(oe); }
+  var opts=shuffle([answer].concat(dis)).slice(0,4);
+  if(opts.indexOf(answer)<0)opts[0]=answer;
+  return {kind:'verse', tag:'✍️ Finish the Verse', prompt:prompt, a:answer, options:opts, ref:v.ref, section:v.section, say:prompt};
+}
+function makeDrill(p){
+  var books=allBooks(); if(!books.length)return {kind:'msg',text:'Loading books…'};
+  // target: a reference from verses if available, else random book+chapter
+  var V=Object.keys(DATA.content.verses||{});
+  var ref, target;
+  if(V.length && Math.random()<0.7){ ref=pick(V); target=bookOf(ref); }
+  else { var b=pick(books); var ch=1+Math.floor(Math.random()*b.chapters); ref=b.name+" "+ch; target=b.name; }
+  var tbook=books.filter(function(b){return b.name===target;})[0]||pick(books);
+  return {kind:'drill', tag:'⚔️ Sword Drill', ref:ref, target:target, tbook:tbook, tier:p.tier, say:"Find "+ref, start:0};
+}
+function makeOrder(p){
+  var secs=DATA.books.sections||[]; if(!secs.length)return {kind:'msg',text:'Loading…'};
+  var pool = G.sections? secs.filter(function(s){return G.sections.indexOf(s.id)>=0;}) : secs;
+  if(!pool.length)pool=secs;
+  var s=pick(pool);
+  var books=s.books.slice().sort(function(a,b){return a.order-b.order;});
+  var use = p.tier==='kid' ? books.slice(0, Math.min(4,books.length)) : (p.tier==='teen'? books.slice(0,Math.min(6,books.length)) : books);
+  // re-sort chosen subset by order to define correct sequence
+  use=use.slice().sort(function(a,b){return a.order-b.order;});
+  return {kind:'order', tag:'🔢 Books in Order', section:s, correct:use.map(function(b){return b.name;}), say:"Put these books of "+s.name+" in order"};
+}
+
+/* ---- render per question ---- */
+function nextQuestion(){
+  var t=G.turn;
+  if(t.i>=t.qs.length){ return finishTurn(); }
+  $('#progbar').style.width = Math.round((t.i/t.qs.length)*100)+"%";
+  $('#feed').textContent=""; $('#feed').className="feed";
+  var q=t.qs[t.i]; G.q=q;
+  var area=$('#playArea');
+  if(q.kind==='msg'){ area.innerHTML='<div class="qcard"><div class="qtext">'+esc(q.text)+'</div></div>'; setTimeout(function(){t.i++; nextQuestion();},1200); return; }
+  if(q.kind==='quiz') return renderQuiz(q);
+  if(q.kind==='verse') return renderVerse(q);
+  if(q.kind==='drill') return renderDrill(q);
+  if(q.kind==='order') return renderOrder(q);
+}
+function optClass(two){ return two?'opts two':'opts'; }
+function renderQuiz(q){
+  var html='<div class="qcard"><span class="qtag">'+q.tag+'</span><div class="qtext">'+esc(q.q)+'</div>'+(q.ref?'<div class="qref">📖 '+esc(q.ref)+'</div>':'')+'</div>';
+  html+='<div class="'+optClass(q.options.join('').length<40)+'" id="optWrap">';
+  q.options.forEach(function(o,i){ html+='<button class="opt" onclick="answerQuiz('+i+')">'+esc(o)+'</button>'; });
+  html+='</div>';
+  $('#playArea').innerHTML=html;
+  speak(q.say);
+}
+function answerQuiz(i){
+  if(G.q._done)return; G.q._done=true;
+  var q=G.q, correct=(q.options[i]===q.a);
+  var btns=$$('#optWrap .opt');
+  btns.forEach(function(b,j){ b.disabled=true; if(q.options[j]===q.a)b.classList.add('ok'); else if(j===i)b.classList.add('no'); else b.classList.add('dim'); });
+  settle(correct, q.a, q.section, q.ref);
+}
+function renderVerse(q){
+  var html='<div class="qcard"><span class="qtag">'+q.tag+'</span><div class="qtext">“'+esc(q.prompt)+' …?”</div><div class="qref">📖 '+esc(q.ref)+' ('+G.ver.toUpperCase()+')</div></div>';
+  html+='<div class="opts" id="optWrap">';
+  q.options.forEach(function(o,i){ html+='<button class="opt" onclick="answerVerse('+i+')">… '+esc(o)+'</button>'; });
+  html+='</div>';
+  $('#playArea').innerHTML=html; speak(q.say);
+}
+function answerVerse(i){
+  if(G.q._done)return; G.q._done=true;
+  var q=G.q, correct=(q.options[i]===q.a);
+  $$('#optWrap .opt').forEach(function(b,j){ b.disabled=true; if(q.options[j]===q.a)b.classList.add('ok'); else if(j===i)b.classList.add('no'); else b.classList.add('dim'); });
+  if(correct){ recordVerse(curPlayer(), q.ref); speak("“"+q.prompt+" "+q.a+"”"); }
+  settle(correct, q.a, q.section, q.ref, true);
+}
+function renderDrill(q){
+  q.start=Date.now();
+  var p=curPlayer();
+  var html='<div class="qcard"><span class="qtag">'+q.tag+'</span><div class="qtext">Find the book of this verse:</div><div class="qtext" style="color:#7a4; font-size:30px">📖 '+esc(q.ref)+'</div><div class="muted" style="color:#8a7a52">Tap the right book — fast!</div></div>';
+  var books=allBooks();
+  if(p.tier==='kid'){
+    // show the target's section books + a few others, 6 choices
+    var sec=sectionById(q.tbook.section); var choices=sec.books.map(function(b){return b.name;});
+    var extra=shuffle(books.map(function(b){return b.name;}).filter(function(n){return choices.indexOf(n)<0;})).slice(0,6);
+    var six=shuffle([q.target].concat(shuffle(choices.filter(function(n){return n!==q.target;})).slice(0,2)).concat(extra)).slice(0,6);
+    if(six.indexOf(q.target)<0)six[0]=q.target; six=shuffle(six);
+    html+='<div class="board">'+six.map(function(n){return '<button class="bk" onclick="answerDrill(this,\''+n.replace(/'/g,"")+'\')">'+esc(n)+'</button>';}).join('')+'</div>';
+    $('#playArea').innerHTML=html;
+  } else {
+    // full 66-book board grouped
+    var h='<div class="board">';
+    (DATA.books.sections||[]).forEach(function(s){ s.books.forEach(function(b){ h+='<button class="bk" onclick="answerDrill(this,\''+b.name.replace(/'/g,"")+'\')">'+esc(b.name)+'</button>'; }); });
+    h+='</div>';
+    html+=h; $('#playArea').innerHTML=html;
+  }
+  speak(q.say);
+}
+function answerDrill(btn, name){
+  if(G.q._done)return; G.q._done=true;
+  var q=G.q, correct=(name===q.target);
+  var ms=Date.now()-q.start;
+  $$('#playArea .bk').forEach(function(b){ b.disabled=true; if(b.textContent===q.target)b.classList.add('ok'); });
+  if(!correct)btn.classList.add('no');
+  if(correct)recordDrill(curPlayer(), ms);
+  var bonus = correct && ms<4000 ? 1:0;
+  settle(correct, q.target+" is "+(q.tbook.section?sectionById(q.tbook.section).name:""), q.target&&null, q.ref, false, bonus, correct?("⏱️ "+(ms/1000).toFixed(1)+"s"+(bonus?" — swift! +1":"")):null);
+}
+function renderOrder(q){
+  G.ord={correct:q.correct.slice(), placed:[]};
+  var html='<div class="qcard"><span class="qtag">'+q.tag+'</span><div class="qtext">'+q.section.emoji+' Put these books of <b>'+esc(q.section.name)+'</b> in Bible order</div></div>';
+  html+='<div class="ordtray" id="ordtray"><span class="muted">tap books below in order →</span></div>';
+  html+='<div class="ordpick" id="ordpick">'+shuffle(q.correct).map(function(n){return '<button class="chip" onclick="placeBook(this,\''+n.replace(/'/g,"")+'\')">'+esc(n)+'</button>';}).join('')+'</div>';
+  html+='<button class="btn sm" id="ordCheck" onclick="checkOrder()" style="display:none">Check ✓</button>';
+  $('#playArea').innerHTML=html; speak(q.say);
+}
+function placeBook(btn,name){
+  if(btn.disabled)return; btn.disabled=true; btn.style.visibility="hidden"; sndTap();
+  G.ord.placed.push(name);
+  var tray=$('#ordtray'); if(G.ord.placed.length===1)tray.innerHTML="";
+  var i=G.ord.placed.length; var c=document.createElement('span'); c.className="chip num"; c.textContent=i+". "+name; tray.appendChild(c);
+  if(G.ord.placed.length===G.ord.correct.length)$('#ordCheck').style.display="inline-block";
+}
+function checkOrder(){
+  if(G.q._done)return; G.q._done=true;
+  var ok=G.ord.placed.join("|")===G.ord.correct.join("|");
+  var tray=$('#ordtray'); $$('.chip',tray).forEach(function(c,i){ c.style.background=(G.ord.placed[i]===G.ord.correct[i])?'#2a9e72':'#9e2a42'; c.style.color="#fff"; });
+  $('#ordCheck').style.display="none";
+  settle(ok, G.q.correct.join(" → "), G.q.section.id, null);
+}
+
+/* ---- settle a question ---- */
+function settle(correct, answerText, section, ref, isVerse, bonus, extraMsg){
+  var p=curPlayer();
+  bonus=bonus||0;
+  if(correct){ p.score=(p.score||0)+1+bonus; G.turn.correct++; sndGood(); flash(true, extraMsg||pick(["Amen! ✝️","Well done! ⚔️","Yes! 🎉","Sharp! ✨","Glory! 🙌"])); }
+  else { sndBad(); flash(false, "📖 "+answerText); }
+  if(section!==null && typeof section!=='undefined') recordAnswer(p, section, correct);
+  else recordAnswer(p, null, correct);
+  $('#scoreChip').textContent=p.score||0;
+  renderScoreboard();
+  setTimeout(function(){ if(!$('#play').classList.contains('active'))return; G.turn.i++; nextQuestion(); }, correct?900:1600);
+}
+function flash(ok,msg){ var f=$('#feed'); f.textContent=msg; f.className="feed "+(ok?"ok":"no"); }
+
+function finishTurn(){
+  $('#progbar').style.width="100%";
+  var p=curPlayer(); recordGame(p);
+  // show quick turn tally only in multiplayer; then advance
+  if(G.players.length>1){
+    $('#resEmoji').textContent="⚔️"; $('#resTitle').textContent=p.name+"'s turn done";
+    $('#resBody').innerHTML='<p>You got <b>'+G.turn.correct+' / '+G.turn.qs.length+'</b> right.</p>';
+    $('#resNext').textContent="Next player ▶️";
+    G._after='turn';
+    openOverlay('result');
+  } else {
+    advanceTurn();
+  }
+}
+function afterResult(){ closeOverlay('result'); if(G._after==='game'){ quitToModes(); } else { advanceTurn(); } }
+function advanceTurn(){ if(G.ending)return; G.ending=true; G.turnCount++; setTimeout(function(){ G.ending=false; startTurn(); }, 60); }
+
+function endGame(){
+  shutUp();
+  var ranked=G.players.slice().sort(function(a,b){return (b.score||0)-(a.score||0);});
+  var win=ranked[0];
+  sndWin(); confetti();
+  $('#resEmoji').textContent="🏆";
+  if(G.players.length>1){
+    $('#resTitle').textContent=win.name+" wins!";
+    var body='<div style="margin:8px 0">';
+    ranked.forEach(function(p,i){ body+='<div class="statline"><span>'+(i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':'• ')+esc(p.name)+'</span><b>'+(p.score||0)+'</b></div>'; });
+    body+='</div><p class="muted">Well fought, soldiers of Christ! ⚔️</p>';
+    $('#resBody').innerHTML=body;
+  } else {
+    $('#resTitle').textContent="Victory!";
+    $('#resBody').innerHTML='<p>You scored <b>'+(win.score||0)+'</b>! 🎉</p><p class="muted">Keep hiding God\'s word in your heart.</p>';
+  }
+  if(G.mode==='campaign' && G.campSection){ campaignCleared(); }
+  $('#resNext').textContent="🏠 Home"; G._after='game';
+  openOverlay('result');
+}
+function quitToModes(){ G.ending=true; shutUp(); closeOverlay('result'); closeOverlay('pass'); show(G.mode==='campaign'?'campaign':'modes'); }
+
+/* ============ CAMPAIGN ============ */
+function campProgress(){ return load("dys_camp", {done:{}}); }
+function openCampaign(){
+  var prog=campProgress(); var secs=DATA.books.sections||[];
+  var grid=$('#campgrid'); grid.innerHTML="";
+  var prevDone=true;
+  secs.forEach(function(s,idx){
+    var done=!!prog.done[s.id];
+    var unlocked = idx===0 || !!prog.done[secs[idx-1].id];
+    var d=document.createElement('div'); d.className="seccard"+(unlocked?"":" locked");
+    d.style.background="linear-gradient(160deg,"+s.color+","+s.color+")";
+    d.innerHTML='<div class="e">'+s.emoji+'</div><b>'+esc(s.name)+'</b><small>'+esc(s.sub)+'</small><div class="st">'+(done?'✅ cleared':unlocked?'▶️ play':'🔒 locked')+'</div>';
+    if(unlocked)d.onclick=function(){ startCampaign(s); };
+    grid.appendChild(d);
+  });
+  show('campaign');
+}
+function startCampaign(s){
+  unlockAudio();
+  G.mode='campaign'; G.sections=[s.id]; G.campSection=s;
+  // campaign = solo-style mixed round for the active roster (use player 1 if none)
+  if(!G.players.length)G.players=defaultPlayers();
+  G.campMix=true;
+  beginGame();
+}
+function campaignCleared(){
+  var p=campProgress(); p.done[G.campSection.id]=1; save("dys_camp",p);
+  toast("🏕️ "+G.campSection.name+" cleared!");
+}
+function resetCampaignAsk(){ if(confirm("Reset the whole journey?")){ save("dys_camp",{done:{}}); openCampaign(); } }
+
+/* in campaign, build a mixed turn */
+var _origBuild=buildTurnQuestions;
+buildTurnQuestions=function(p){
+  if(G.mode==='campaign'){
+    var arr=[makeQuiz(p),makeQuiz(p),makeDrill(p),makeVerse(p),makeQuiz(p)];
+    return arr;
+  }
+  return _origBuild(p);
+};
+
+/* ============ PARENTS ============ */
+function openParents(){ $('#pinGate').style.display="block"; $('#pinBody').style.display="none"; $('#pinInput').value=""; openOverlay('parents'); setTimeout(function(){$('#pinInput').focus();},200); }
+function checkPin(){ var pin=load("dys_pin","2020"); if($('#pinInput').value===String(pin)){ $('#pinGate').style.display="none"; $('#pinBody').style.display="block"; renderDash(); } else { toast("Wrong code"); } }
+function savePin(){ var v=$('#newPin').value; if(/^\d{4}$/.test(v)){ save("dys_pin",v); toast("Code saved"); $('#newPin').value=""; } else toast("Use 4 digits"); }
+function renderDash(){
+  var all=load("dys_prof",{}); var names=Object.keys(all);
+  var box=$('#dashBody');
+  if(!names.length){ box.innerHTML='<p class="muted">No games played yet. Progress will appear here as the children play.</p>'; return; }
+  var secNames={}; (DATA.books.sections||[]).forEach(function(s){secNames[s.id]=s.name;});
+  var html="";
+  names.forEach(function(k){
+    var p=all[k]; var acc=p.total? Math.round(p.correct/p.total*100):0;
+    var verses=Object.keys(p.verses||{}).length;
+    html+='<div class="card" style="margin:8px 0; text-align:left">';
+    html+='<b style="font-size:18px">'+esc(p.name)+'</b>';
+    html+='<div class="statline"><span>Games played</span><b>'+p.games+'</b></div>';
+    html+='<div class="statline"><span>Questions answered</span><b>'+p.total+'</b></div>';
+    html+='<div class="statline"><span>Accuracy</span><b>'+acc+'%</b></div>';
+    html+='<div class="statline"><span>Verses memorized</span><b>'+verses+'</b></div>';
+    if(p.bestDrill!=null)html+='<div class="statline"><span>Fastest sword draw</span><b>'+(p.bestDrill/1000).toFixed(1)+'s</b></div>';
+    // per-section accuracy
+    var secs=Object.keys(p.sections||{});
+    if(secs.length){ html+='<div style="margin-top:6px">'; secs.forEach(function(sid){ var s=p.sections[sid]; var a=Math.round(s.c/s.t*100); html+='<span class="badge">'+esc(secNames[sid]||sid)+' '+a+'%</span>'; }); html+='</div>'; }
+    if(verses){ html+='<details style="margin-top:6px"><summary class="muted">Verses learned ('+verses+')</summary><div style="margin-top:4px">'+Object.keys(p.verses).map(function(r){return '<span class="pill">'+esc(r)+'</span>';}).join('')+'</div></details>'; }
+    html+='</div>';
+  });
+  box.innerHTML=html;
+}
+
+/* ============ INIT ============ */
+(function init(){
+  G.ver=load("dys_ver","web"); G.opt=load("dys_opt",{voice:true,sfx:true});
+  // stars
+  for(var i=0;i<22;i++){ var s=document.createElement('div'); s.className="star"; s.textContent=pick(["✦","✧","⋆","·"]); s.style.left=(Math.random()*100)+"%"; s.style.top=(Math.random()*100)+"%"; s.style.animationDelay=(Math.random()*4)+"s"; s.style.fontSize=(10+Math.random()*12)+"px"; document.body.appendChild(s); }
+  document.addEventListener('click',function once(){ unlockAudio(); document.removeEventListener('click',once); });
+  // service worker
+  if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ try{navigator.serviceWorker.register('sw.js');}catch(e){} }
+})();
+</script>
+</body>
+</html>

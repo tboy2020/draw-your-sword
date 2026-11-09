@@ -1,0 +1,97 @@
+{
+  "sections": [
+    { "id": "law", "name": "The Law", "sub": "Pentateuch", "testament": "OT", "emoji": "📜", "color": "#c9821f",
+      "books": [
+        { "name": "Genesis", "abbr": "Gen", "chapters": 50, "order": 1 },
+        { "name": "Exodus", "abbr": "Exo", "chapters": 40, "order": 2 },
+        { "name": "Leviticus", "abbr": "Lev", "chapters": 27, "order": 3 },
+        { "name": "Numbers", "abbr": "Num", "chapters": 36, "order": 4 },
+        { "name": "Deuteronomy", "abbr": "Deu", "chapters": 34, "order": 5 }
+      ] },
+    { "id": "history", "name": "History", "sub": "Joshua–Esther", "testament": "OT", "emoji": "🏰", "color": "#2f6fed",
+      "books": [
+        { "name": "Joshua", "abbr": "Jos", "chapters": 24, "order": 6 },
+        { "name": "Judges", "abbr": "Jdg", "chapters": 21, "order": 7 },
+        { "name": "Ruth", "abbr": "Rut", "chapters": 4, "order": 8 },
+        { "name": "1 Samuel", "abbr": "1Sa", "chapters": 31, "order": 9 },
+        { "name": "2 Samuel", "abbr": "2Sa", "chapters": 24, "order": 10 },
+        { "name": "1 Kings", "abbr": "1Ki", "chapters": 22, "order": 11 },
+        { "name": "2 Kings", "abbr": "2Ki", "chapters": 25, "order": 12 },
+        { "name": "1 Chronicles", "abbr": "1Ch", "chapters": 29, "order": 13 },
+        { "name": "2 Chronicles", "abbr": "2Ch", "chapters": 36, "order": 14 },
+        { "name": "Ezra", "abbr": "Ezr", "chapters": 10, "order": 15 },
+        { "name": "Nehemiah", "abbr": "Neh", "chapters": 13, "order": 16 },
+        { "name": "Esther", "abbr": "Est", "chapters": 10, "order": 17 }
+      ] },
+    { "id": "wisdom", "name": "Wisdom & Poetry", "sub": "Job–Song of Solomon", "testament": "OT", "emoji": "🎶", "color": "#8a4fe0",
+      "books": [
+        { "name": "Job", "abbr": "Job", "chapters": 42, "order": 18 },
+        { "name": "Psalms", "abbr": "Psa", "chapters": 150, "order": 19 },
+        { "name": "Proverbs", "abbr": "Pro", "chapters": 31, "order": 20 },
+        { "name": "Ecclesiastes", "abbr": "Ecc", "chapters": 12, "order": 21 },
+        { "name": "Song of Solomon", "abbr": "Sng", "chapters": 8, "order": 22 }
+      ] },
+    { "id": "majorprophets", "name": "Major Prophets", "sub": "Isaiah–Daniel", "testament": "OT", "emoji": "🔥", "color": "#d6336c",
+      "books": [
+        { "name": "Isaiah", "abbr": "Isa", "chapters": 66, "order": 23 },
+        { "name": "Jeremiah", "abbr": "Jer", "chapters": 52, "order": 24 },
+        { "name": "Lamentations", "abbr": "Lam", "chapters": 5, "order": 25 },
+        { "name": "Ezekiel", "abbr": "Eze", "chapters": 48, "order": 26 },
+        { "name": "Daniel", "abbr": "Dan", "chapters": 12, "order": 27 }
+      ] },
+    { "id": "minorprophets", "name": "Minor Prophets", "sub": "Hosea–Malachi", "testament": "OT", "emoji": "📢", "color": "#0ca678",
+      "books": [
+        { "name": "Hosea", "abbr": "Hos", "chapters": 14, "order": 28 },
+        { "name": "Joel", "abbr": "Joe", "chapters": 3, "order": 29 },
+        { "name": "Amos", "abbr": "Amo", "chapters": 9, "order": 30 },
+        { "name": "Obadiah", "abbr": "Oba", "chapters": 1, "order": 31 },
+        { "name": "Jonah", "abbr": "Jon", "chapters": 4, "order": 32 },
+        { "name": "Micah", "abbr": "Mic", "chapters": 7, "order": 33 },
+        { "name": "Nahum", "abbr": "Nah", "chapters": 3, "order": 34 },
+        { "name": "Habakkuk", "abbr": "Hab", "chapters": 3, "order": 35 },
+        { "name": "Zephaniah", "abbr": "Zep", "chapters": 3, "order": 36 },
+        { "name": "Haggai", "abbr": "Hag", "chapters": 2, "order": 37 },
+        { "name": "Zechariah", "abbr": "Zec", "chapters": 14, "order": 38 },
+        { "name": "Malachi", "abbr": "Mal", "chapters": 4, "order": 39 }
+      ] },
+    { "id": "gospels", "name": "The Gospels", "sub": "Matthew–John", "testament": "NT", "emoji": "✝️", "color": "#12b886",
+      "books": [
+        { "name": "Matthew", "abbr": "Mat", "chapters": 28, "order": 40 },
+        { "name": "Mark", "abbr": "Mar", "chapters": 16, "order": 41 },
+        { "name": "Luke", "abbr": "Luk", "chapters": 24, "order": 42 },
+        { "name": "John", "abbr": "Joh", "chapters": 21, "order": 43 }
+      ] },
+    { "id": "acts", "name": "Acts", "sub": "The Early Church", "testament": "NT", "emoji": "🕊️", "color": "#f76707",
+      "books": [
+        { "name": "Acts", "abbr": "Act", "chapters": 28, "order": 44 }
+      ] },
+    { "id": "paul", "name": "Paul's Letters", "sub": "Romans–Philemon", "testament": "NT", "emoji": "✍️", "color": "#4263eb",
+      "books": [
+        { "name": "Romans", "abbr": "Rom", "chapters": 16, "order": 45 },
+        { "name": "1 Corinthians", "abbr": "1Co", "chapters": 16, "order": 46 },
+        { "name": "2 Corinthians", "abbr": "2Co", "chapters": 13, "order": 47 },
+        { "name": "Galatians", "abbr": "Gal", "chapters": 6, "order": 48 },
+        { "name": "Ephesians", "abbr": "Eph", "chapters": 6, "order": 49 },
+        { "name": "Philippians", "abbr": "Php", "chapters": 4, "order": 50 },
+        { "name": "Colossians", "abbr": "Col", "chapters": 4, "order": 51 },
+        { "name": "1 Thessalonians", "abbr": "1Th", "chapters": 5, "order": 52 },
+        { "name": "2 Thessalonians", "abbr": "2Th", "chapters": 3, "order": 53 },
+        { "name": "1 Timothy", "abbr": "1Ti", "chapters": 6, "order": 54 },
+        { "name": "2 Timothy", "abbr": "2Ti", "chapters": 4, "order": 55 },
+        { "name": "Titus", "abbr": "Tit", "chapters": 3, "order": 56 },
+        { "name": "Philemon", "abbr": "Phm", "chapters": 1, "order": 57 }
+      ] },
+    { "id": "generalrev", "name": "Letters & Revelation", "sub": "Hebrews–Revelation", "testament": "NT", "emoji": "📖", "color": "#e8a90c",
+      "books": [
+        { "name": "Hebrews", "abbr": "Heb", "chapters": 13, "order": 58 },
+        { "name": "James", "abbr": "Jas", "chapters": 5, "order": 59 },
+        { "name": "1 Peter", "abbr": "1Pe", "chapters": 5, "order": 60 },
+        { "name": "2 Peter", "abbr": "2Pe", "chapters": 3, "order": 61 },
+        { "name": "1 John", "abbr": "1Jo", "chapters": 5, "order": 62 },
+        { "name": "2 John", "abbr": "2Jo", "chapters": 1, "order": 63 },
+        { "name": "3 John", "abbr": "3Jo", "chapters": 1, "order": 64 },
+        { "name": "Jude", "abbr": "Jud", "chapters": 1, "order": 65 },
+        { "name": "Revelation", "abbr": "Rev", "chapters": 22, "order": 66 }
+      ] }
+  ]
+}
