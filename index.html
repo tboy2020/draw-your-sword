@@ -201,7 +201,7 @@ canvas#confetti{position:fixed; inset:0; pointer-events:none; z-index:50;}
   <!-- CAMPAIGN MAP -->
   <section id="campaign" class="screen">
     <div class="topbar"><button class="btn ghost sm" onclick="show('modes')">⬅️ Back</button><b>🏕️ Campaign</b><span></span></div>
-    <p class="muted">Clear each section to unlock the next. Draw your sword, soldier of Christ! ⚔️</p>
+    <p class="muted">📖 Journey through the Bible, section by section! <b>Play a section's round of questions to the end to clear it</b> — then the next section unlocks. Tap a glowing ▶️ section to begin; 🔒 means it's still locked. ⚔️</p>
     <div id="campgrid" class="secgrid"></div>
     <button class="btn ghost sm" onclick="resetCampaignAsk()">↺ Reset journey</button>
   </section>
@@ -642,7 +642,7 @@ function answerVerse(i){
   if(G.q._done)return; G.q._done=true;
   var q=G.q, correct=(q.options[i]===q.a);
   $$('#optWrap .opt').forEach(function(b,j){ b.disabled=true; if(q.options[j]===q.a)b.classList.add('ok'); else if(j===i)b.classList.add('no'); else b.classList.add('dim'); });
-  if(correct){ recordVerse(curPlayer(), q.ref); speak("“"+q.prompt+" "+q.a+"”"); }
+  if(correct){ recordVerse(curPlayer(), q.ref); }
   settle(correct, q.a, q.section, q.ref, true);
 }
 function renderDrill(q){
@@ -710,15 +710,34 @@ function settle(correct, answerText, section, ref, isVerse, bonus, extraMsg){
   else recordAnswer(p, null, correct);
   $('#scoreChip').textContent=p.score||0;
   renderScoreboard();
-  setTimeout(function(){ if(!$('#play').classList.contains('active'))return; G.turn.i++; nextQuestion(); }, correct?900:1600);
+  showContinue();
 }
 function flash(ok,msg){ var f=$('#feed'); f.textContent=msg; f.className="feed "+(ok?"ok":"no"); }
+// After an answer: show the correct answer + explanation, read it aloud, and WAIT for a tap — no rushing the next player.
+function showContinue(){
+  if($('#contWrap'))return;
+  var q=G.q, info='', say='';
+  if(q){
+    if(q.kind==='quiz'){ info=q.explain?('💡 '+q.explain):('📖 Answer: '+q.a); say=q.a+(q.explain?'. '+q.explain:''); }
+    else if(q.kind==='verse'){ info='📖 “'+q.prompt+' '+q.a+'” ('+q.ref+')'; say='“'+q.prompt+' '+q.a+'”'; }
+    else if(q.kind==='drill'){ var sn=(q.tbook&&q.tbook.section)?sectionById(q.tbook.section).name:''; info='📖 '+q.ref+' — in '+q.target+(sn?' ('+sn+')':''); say=q.ref+' is in '+q.target; }
+    else if(q.kind==='order'){ info='✅ '+q.correct.join(' → '); say='The right order is '+q.correct.join(', '); }
+  }
+  var last = !G.turn || (G.turn.i>=G.turn.qs.length-1);
+  var nextLbl = (last && G.players.length>1) ? 'Pass ▶️' : 'Next ▶️';
+  var html='<div id="contWrap" style="margin-top:12px">';
+  if(info) html+='<div class="qref" style="color:#8a7a52; margin:2px 0 10px; font-size:15px; line-height:1.35">'+esc(info)+'</div>';
+  html+='<button class="btn" id="contBtn" onclick="continueTurn()">'+nextLbl+'</button></div>';
+  var area=$('#playArea'); if(area) area.insertAdjacentHTML('beforeend', html);
+  setTimeout(function(){ speak(say); }, 350);
+}
+function continueTurn(){ if(!$('#play').classList.contains('active'))return; shutUp(); if(G.turn){ G.turn.i++; nextQuestion(); } }
 
 function finishTurn(){
   $('#progbar').style.width="100%";
   var p=curPlayer(); recordGame(p);
-  // show quick turn tally only in multiplayer; then advance
-  if(G.players.length>1){
+  // show quick turn tally only for multi-question turns in multiplayer; single-question turns pass straight on
+  if(G.players.length>1 && G.turn.qs.length>1){
     $('#resEmoji').textContent="⚔️"; $('#resTitle').textContent=p.name+"'s turn done";
     $('#resBody').innerHTML='<p>You got <b>'+G.turn.correct+' / '+G.turn.qs.length+'</b> right.</p>';
     $('#resNext').textContent="Next player ▶️";
