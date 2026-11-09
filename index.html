@@ -178,6 +178,7 @@ canvas#confetti{position:fixed; inset:0; pointer-events:none; z-index:50;}
           <button data-pt="3" onclick="setPerTurn(3)">3</button>
           <button data-pt="5" onclick="setPerTurn(5)">5</button>
         </div>
+        <div class="muted" style="font-size:12px; margin-top:4px">Each player gets 10 questions a game — pick how many before you pass.</div>
       </div>
       <button class="btn big" onclick="goModes()">Choose a game ▶️</button>
     </div>
@@ -325,7 +326,8 @@ var COLORS=["#f4c430","#36c08a","#4aa3ff","#ff6b8a","#b084ff","#ff9f43","#2dd4bf
 var TIERS=[{k:"kid",label:"🐣 Recruit"},{k:"teen",label:"🛡️ Soldier"},{k:"adult",label:"👑 Champion"}];
 
 var DATA={books:null, content:null, ready:false};
-var G={players:[], ver:"web", opt:{voice:true, sfx:true}, mode:null, idx:0, turnCount:0, ending:false, perTurn:5, used:{}};
+var G={players:[], ver:"web", opt:{voice:true, sfx:true}, mode:null, idx:0, turnCount:0, ending:false, perTurn:1, used:{}};
+var TARGET_PER_PLAYER=10; // each player answers ~10 questions per game
 
 /* ---------- storage ---------- */
 function LS(){ try{return window.localStorage;}catch(e){return null;} }
@@ -422,7 +424,7 @@ function setName(i,v){ G.players[i].name=v||("Player "+(i+1)); }
 function setColor(i,c){ G.players[i].color=c; renderPlayers(); sndTap(); }
 function setTier(i,t){ G.players[i].tier=t; renderPlayers(); sndTap(); }
 function setVer(v){ G.ver=v; save("dys_ver",v); $$('#verToggle button,#verToggle2 button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);}); }
-function setPerTurn(n){ n=+n; G.perTurn=n; save("dys_perturn",n); $$('#ptToggle button').forEach(function(b){b.classList.toggle('on', +b.getAttribute('data-pt')===n);}); }
+function setPerTurn(n){ n=+n; G.perTurn=n; save("dys_qpt",n); $$('#ptToggle button').forEach(function(b){b.classList.toggle('on', +b.getAttribute('data-pt')===n);}); }
 
 function goPlayers(){ unlockAudio(); if(!G.players.length)G.players=defaultPlayers(); renderPlayers(); setVer(G.ver); setPerTurn(G.perTurn); show('players'); }
 function goModes(){ if(!G.players.length)G.players=defaultPlayers(); show('modes'); }
@@ -493,10 +495,10 @@ function startTurn(){
   G.ending=false;
   if(G.players.length===1){ beginTurn(); return; }
   $('#passEmoji').textContent="🤝"; $('#passTitle').textContent="Pass to "+p.name; $('#passTitle').style.color=p.color;
-  $('#passSub').textContent=TIERS.filter(function(t){return t.k===p.tier;})[0].label+" · Round "+(Math.floor(G.turnCount/G.players.length)+1);
+  $('#passSub').textContent=TIERS.filter(function(t){return t.k===p.tier;})[0].label+" · Round "+(Math.floor(G.turnCount/G.players.length)+1)+" of "+roundsPerGame();
   openOverlay('pass');
 }
-function roundsPerGame(){ return G.mode==='campaign'?1:2; } // each player gets this many turns
+function roundsPerGame(){ if(G.mode==='campaign')return 1; return Math.max(1, Math.round(TARGET_PER_PLAYER/(G.perTurn||1))); } // ~10 questions per player
 function beginTurn(){
   closeOverlay('pass'); unlockAudio();
   var p=curPlayer();
@@ -732,18 +734,21 @@ function advanceTurn(){ if(G.ending)return; G.ending=true; G.turnCount++; setTim
 function endGame(){
   shutUp();
   var ranked=G.players.slice().sort(function(a,b){return (b.score||0)-(a.score||0);});
-  var win=ranked[0];
+  var top=ranked[0].score||0;
+  var winners=G.players.filter(function(p){return (p.score||0)===top;});
+  var tie=winners.length>1;
   sndWin(); confetti();
-  $('#resEmoji').textContent="🏆";
   if(G.players.length>1){
-    $('#resTitle').textContent=win.name+" wins!";
+    $('#resEmoji').textContent= tie ? "🤝" : "🏆";
+    $('#resTitle').textContent= tie ? "It's a tie!" : (ranked[0].name+" wins!");
     var body='<div style="margin:8px 0">';
-    ranked.forEach(function(p,i){ body+='<div class="statline"><span>'+(i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':'• ')+esc(p.name)+'</span><b>'+(p.score||0)+'</b></div>'; });
-    body+='</div><p class="muted">Well fought, soldiers of Christ! ⚔️</p>';
+    ranked.forEach(function(p){ var m=(p.score||0)===top?'🥇 ':'• '; body+='<div class="statline"><span>'+m+esc(p.name)+'</span><b>'+(p.score||0)+'</b></div>'; });
+    body+='</div><p class="muted">'+(tie?"A draw — well matched! Great knowing of the Word. 🤝":"Well fought, soldiers of Christ! ⚔️")+'</p>';
     $('#resBody').innerHTML=body;
   } else {
+    $('#resEmoji').textContent="🏆";
     $('#resTitle').textContent="Victory!";
-    $('#resBody').innerHTML='<p>You scored <b>'+(win.score||0)+'</b>! 🎉</p><p class="muted">Keep hiding God\'s word in your heart.</p>';
+    $('#resBody').innerHTML='<p>You scored <b>'+top+'</b>! 🎉</p><p class="muted">Keep hiding God\'s word in your heart.</p>';
   }
   if(G.mode==='campaign' && G.campSection){ campaignCleared(); }
   $('#resNext').textContent="🏠 Home"; G._after='game';
@@ -823,7 +828,7 @@ function renderDash(){
 
 /* ============ INIT ============ */
 (function init(){
-  G.ver=load("dys_ver","web"); G.opt=load("dys_opt",{voice:true,sfx:true}); G.perTurn=load("dys_perturn",5);
+  G.ver=load("dys_ver","web"); G.opt=load("dys_opt",{voice:true,sfx:true}); G.perTurn=load("dys_qpt",1);
   // stars
   for(var i=0;i<22;i++){ var s=document.createElement('div'); s.className="star"; s.textContent=pick(["✦","✧","⋆","·"]); s.style.left=(Math.random()*100)+"%"; s.style.top=(Math.random()*100)+"%"; s.style.animationDelay=(Math.random()*4)+"s"; s.style.fontSize=(10+Math.random()*12)+"px"; document.body.appendChild(s); }
   document.addEventListener('click',function once(){ unlockAudio(); document.removeEventListener('click',once); });
