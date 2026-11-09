@@ -300,14 +300,16 @@ function doJoin(){
 function watchRoomAsGuest(code){
   db.ref('rooms/'+code).on('value', function(snap){
     var r=snap.val(); if(!r){ toast("The host closed the room."); setTimeout(function(){location.reload();},1500); return; }
-    var me=(r.players&&r.players[pid()])||{}; ME.score=me.score||0; $('#gScore').textContent=(ME.score)+" pts";
-    if(r.state==='question' && r.current){ guestQuestion(r); }
+    var me=(r.players&&r.players[pid()])||{}; ME.score=me.score||0; $('#gScore').textContent=(ME.score)+" right";
+    if(r.state==='question' && r.current){ guestQuestion(r); if(ME.answeredQi===r.qIndex){ var ans=(r.answers&&r.answers[r.qIndex])||{}; $('#gWait').textContent="⏳ "+Object.keys(ans).length+" of "+Object.keys(r.players||{}).length+" answered…"; } }
     else if(r.state==='reveal'){ guestReveal(r); }
     else if(r.state==='ended'){ guestEnd(r); }
   });
 }
 function guestQuestion(r){
   var qi=r.qIndex; ME.curQi=qi;
+  if(ME.renderedQi===qi) return;   // already showing this question — don't re-render (keeps YOUR picked answer visible)
+  ME.renderedQi=qi; ME.chosen=null;
   $('#gProg').textContent="Q "+(qi+1)+"/"+(r.total||TOTAL_Q);
   $('#gQ').textContent=r.current.q; $('#gRef').textContent=r.current.ref?("📖 "+r.current.ref):"";
   $('#gReveal').style.display="none"; $('#gFeed').textContent="";
@@ -318,7 +320,7 @@ function guestQuestion(r){
 }
 function guestAnswer(i){
   var qi=ME.curQi; if(qi==null || ME.answeredQi===qi) return;
-  ME.answeredQi=qi;
+  ME.answeredQi=qi; ME.chosen=i;
   var ms=Date.now()-(ME._shownAt||Date.now());
   db.ref('rooms/'+ME.code+'/answers/'+qi+'/'+pid()).set({ choice:i, ms:ms });
   $$('#gOpts .opt').forEach(function(b,j){ b.disabled=true; if(j===i)b.classList.add('chosen'); else b.classList.add('dim'); });
@@ -327,13 +329,17 @@ function guestAnswer(i){
 function guestReveal(r){
   if(!r.reveal) return;
   var ci=r.reveal.correctIndex;
+  if(ME.chosen!=null){ var ob=$$('#gOpts .opt')[ME.chosen]; if(ob)ob.classList.add('chosen'); }  // keep YOUR pick highlighted
   $$('#gOpts .opt').forEach(function(b,j){ b.disabled=true; if(j===ci)b.classList.add('right'); else if(!b.classList.contains('chosen'))b.classList.add('dim'); });
-  // did I get it right?
   var me=(r.players&&r.players[pid()])||{}; var gotPts=me.last||0;
-  var f=$('#gFeed'); if(gotPts>0){ f.textContent="✅ Correct!  (+1)"; f.className="big-feed ok"; } else { f.textContent="📖 Answer: "+r.reveal.a; f.className="big-feed no"; }
+  var picked=(r.current&&r.current.options&&ME.chosen!=null)?r.current.options[ME.chosen]:null;
+  var f=$('#gFeed');
+  if(gotPts>0){ f.textContent="✅ Correct!  (+1 point)"; f.className="big-feed ok"; }
+  else if(picked!=null){ f.textContent="❌ You picked "+picked+" — answer: "+r.reveal.a; f.className="big-feed no"; }
+  else { f.textContent="⌛ No answer — it was: "+r.reveal.a; f.className="big-feed no"; }
   $('#gWait').textContent="Here's how everyone's doing:";
   $('#gReveal').style.display=""; $('#gLB').innerHTML=leaderboardHTML(Object.keys(r.players||{}).map(function(id){return r.players[id];}));
-  $('#gScore').textContent=(me.score||0)+" pts";
+  $('#gScore').textContent=(me.score||0)+" right";
 }
 function guestEnd(r){ showResults(r); }
 
