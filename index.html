@@ -171,6 +171,14 @@ canvas#confetti{position:fixed; inset:0; pointer-events:none; z-index:50;}
           <button data-v="kjv" onclick="setVer('kjv')">KJV (classic)</button>
         </div>
       </div>
+      <div style="margin-top:12px">
+        <label class="lb">Questions each turn</label>
+        <div class="toggle" id="ptToggle">
+          <button data-pt="1" onclick="setPerTurn(1)">1</button>
+          <button data-pt="3" onclick="setPerTurn(3)">3</button>
+          <button data-pt="5" onclick="setPerTurn(5)">5</button>
+        </div>
+      </div>
       <button class="btn big" onclick="goModes()">Choose a game ▶️</button>
     </div>
   </section>
@@ -317,7 +325,7 @@ var COLORS=["#f4c430","#36c08a","#4aa3ff","#ff6b8a","#b084ff","#ff9f43","#2dd4bf
 var TIERS=[{k:"kid",label:"🐣 Recruit"},{k:"teen",label:"🛡️ Soldier"},{k:"adult",label:"👑 Champion"}];
 
 var DATA={books:null, content:null, ready:false};
-var G={players:[], ver:"web", opt:{voice:true, sfx:true}, mode:null, idx:0, turnCount:0, ending:false};
+var G={players:[], ver:"web", opt:{voice:true, sfx:true}, mode:null, idx:0, turnCount:0, ending:false, perTurn:5, used:{}};
 
 /* ---------- storage ---------- */
 function LS(){ try{return window.localStorage;}catch(e){return null;} }
@@ -414,8 +422,9 @@ function setName(i,v){ G.players[i].name=v||("Player "+(i+1)); }
 function setColor(i,c){ G.players[i].color=c; renderPlayers(); sndTap(); }
 function setTier(i,t){ G.players[i].tier=t; renderPlayers(); sndTap(); }
 function setVer(v){ G.ver=v; save("dys_ver",v); $$('#verToggle button,#verToggle2 button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-v')===v);}); }
+function setPerTurn(n){ n=+n; G.perTurn=n; save("dys_perturn",n); $$('#ptToggle button').forEach(function(b){b.classList.toggle('on', +b.getAttribute('data-pt')===n);}); }
 
-function goPlayers(){ unlockAudio(); if(!G.players.length)G.players=defaultPlayers(); renderPlayers(); setVer(G.ver); show('players'); }
+function goPlayers(){ unlockAudio(); if(!G.players.length)G.players=defaultPlayers(); renderPlayers(); setVer(G.ver); setPerTurn(G.perTurn); show('players'); }
 function goModes(){ if(!G.players.length)G.players=defaultPlayers(); show('modes'); }
 
 /* ---------- options ---------- */
@@ -465,7 +474,7 @@ function startPicked(){
 
 /* ============ GAME LOOP ============ */
 function beginGame(){
-  G.turnCount=0; G.ending=false; G.idx=0;
+  G.turnCount=0; G.ending=false; G.idx=0; G.used={};
   G.players.forEach(function(p){p.score=0;});
   renderScoreboard();
   startTurn();
@@ -502,8 +511,8 @@ function renderTurnHead(){
   $('#scoreChip').textContent=p.score||0;
 }
 function buildTurnQuestions(p){
-  var m=G.mode, n=(m==='drill'||m==='order')?4:ROUND;
-  if(m==='mixed'){ var set=[]; for(var i=0;i<ROUND;i++){ set.push(pick(['quiz','drill','verse'])); } return set.map(function(t){return makeQ(t,p);}); }
+  var m=G.mode, n=(m==='order')?Math.min(G.perTurn,3):G.perTurn;
+  if(m==='mixed'){ var set=[]; for(var i=0;i<G.perTurn;i++){ set.push(pick(['quiz','drill','verse'])); } return set.map(function(t){return makeQ(t,p);}); }
   var arr=[]; for(var j=0;j<n;j++){ arr.push(makeQ(m,p)); } return arr;
 }
 function makeQ(type,p){
@@ -516,6 +525,17 @@ function makeQ(type,p){
 
 /* ---- question pools ---- */
 function tierRank(t){ return t==='kid'?0:t==='teen'?1:2; }
+// Draw an item not yet used this GAME (across all players/turns); reset only when the pool is exhausted.
+function pickUnused(type,pool,idFn){
+  if(!G.used)G.used={};
+  if(!G.used[type])G.used[type]={};
+  var u=G.used[type];
+  var avail=[]; for(var i=0;i<pool.length;i++){ if(!u[idFn(pool[i])])avail.push(pool[i]); }
+  if(!avail.length){ G.used[type]={}; u=G.used[type]; avail=pool; }
+  var chosen=avail[Math.floor(Math.random()*avail.length)];
+  u[idFn(chosen)]=1;
+  return chosen;
+}
 function quizPool(p){
   var secs = G.sections; var out=[];
   var C=DATA.content.sections||{};
@@ -529,7 +549,7 @@ function quizPool(p){
 function makeQuiz(p){
   var pool=quizPool(p);
   if(!pool.length)return {kind:'msg', text:'More quiz questions are on the way! ✨'};
-  var q=pick(pool);
+  var q=pickUnused('quiz',pool,function(x){return x.q;});
   var opts=shuffle((q.options||[q.a]).slice(0,4));
   if(opts.indexOf(q.a)<0){ opts[0]=q.a; opts=shuffle(opts); }
   return {kind:'quiz', tag:'🧠 Bible Quiz', q:q.q, a:q.a, options:opts, ref:q.ref, section:q._sec, say:q.q};
@@ -543,7 +563,7 @@ function verseList(){
 function makeVerse(p){
   var list=verseList();
   if(list.length<4)return {kind:'msg', text:'More memory verses are on the way! ✨'};
-  var v=pick(list);
+  var v=pickUnused('verse',list,function(x){return x.ref;});
   var words=v.text.split(/\s+/);
   var cut=Math.max(2, Math.ceil(words.length*0.55));
   if(cut>=words.length) cut=words.length-1;
@@ -562,7 +582,7 @@ function makeDrill(p){
   // target: a reference from verses if available, else random book+chapter
   var V=Object.keys(DATA.content.verses||{});
   var ref, target;
-  if(V.length && Math.random()<0.7){ ref=pick(V); target=bookOf(ref); }
+  if(V.length){ ref=pickUnused('drill',V,function(x){return x;}); target=bookOf(ref); }
   else { var b=pick(books); var ch=1+Math.floor(Math.random()*b.chapters); ref=b.name+" "+ch; target=b.name; }
   var tbook=books.filter(function(b){return b.name===target;})[0]||pick(books);
   return {kind:'drill', tag:'⚔️ Sword Drill', ref:ref, target:target, tbook:tbook, tier:p.tier, say:"Find "+ref, start:0};
@@ -571,7 +591,7 @@ function makeOrder(p){
   var secs=DATA.books.sections||[]; if(!secs.length)return {kind:'msg',text:'Loading…'};
   var pool = G.sections? secs.filter(function(s){return G.sections.indexOf(s.id)>=0;}) : secs;
   if(!pool.length)pool=secs;
-  var s=pick(pool);
+  var s=pickUnused('order',pool,function(x){return x.id;});
   var books=s.books.slice().sort(function(a,b){return a.order-b.order;});
   var use = p.tier==='kid' ? books.slice(0, Math.min(4,books.length)) : (p.tier==='teen'? books.slice(0,Math.min(6,books.length)) : books);
   // re-sort chosen subset by order to define correct sequence
@@ -803,7 +823,7 @@ function renderDash(){
 
 /* ============ INIT ============ */
 (function init(){
-  G.ver=load("dys_ver","web"); G.opt=load("dys_opt",{voice:true,sfx:true});
+  G.ver=load("dys_ver","web"); G.opt=load("dys_opt",{voice:true,sfx:true}); G.perTurn=load("dys_perturn",5);
   // stars
   for(var i=0;i<22;i++){ var s=document.createElement('div'); s.className="star"; s.textContent=pick(["✦","✧","⋆","·"]); s.style.left=(Math.random()*100)+"%"; s.style.top=(Math.random()*100)+"%"; s.style.animationDelay=(Math.random()*4)+"s"; s.style.fontSize=(10+Math.random()*12)+"px"; document.body.appendChild(s); }
   document.addEventListener('click',function once(){ unlockAudio(); document.removeEventListener('click',once); });
@@ -811,5 +831,6 @@ function renderDash(){
   if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ try{navigator.serviceWorker.register('sw.js');}catch(e){} }
 })();
 </script>
+<script src="install-button.js" defer></script>
 </body>
 </html>
