@@ -215,6 +215,7 @@ canvas#confetti{position:fixed; inset:0; pointer-events:none; z-index:50;}
     </div>
     <div class="scoreboard" id="scoreboard"></div>
     <div class="progress"><i id="progbar"></i></div>
+    <div style="margin:2px 0 6px"><button class="btn ghost sm" id="hearBtn" onclick="hearAgain()">🔊 Hear it again</button></div>
     <div id="playArea"></div>
     <div class="feed" id="feed"></div>
   </section>
@@ -375,6 +376,7 @@ function speak(text){
     window.speechSynthesis.speak(u);}catch(e){}
 }
 function shutUp(){ try{window.speechSynthesis.cancel();}catch(e){} }
+function hearAgain(){ if(G.q && G.q.say) speak(G.q.say); }
 
 /* ---------- misc ---------- */
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
