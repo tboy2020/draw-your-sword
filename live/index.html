@@ -253,7 +253,7 @@ function hostReveal(){
   Object.keys(ans).forEach(function(id){
     var a=ans[id]; if(a.choice>=0&&a.choice<4)counts[a.choice]++;
     var correct=(a.choice===HOST.answerIndex);
-    var pts=correct ? Math.round(100+50*Math.max(0,1-(a.ms||ANSWER_MS)/ANSWER_MS)) : 0;
+    var pts=correct ? 1 : 0; // one point per correct answer — simple "most right wins"
     var cur=(HOST.players[id]&&HOST.players[id].score)||0;
     updates['players/'+id+'/score']=cur+pts;
     updates['players/'+id+'/last']=correct?pts:0;
@@ -330,7 +330,7 @@ function guestReveal(r){
   $$('#gOpts .opt').forEach(function(b,j){ b.disabled=true; if(j===ci)b.classList.add('right'); else if(!b.classList.contains('chosen'))b.classList.add('dim'); });
   // did I get it right?
   var me=(r.players&&r.players[pid()])||{}; var gotPts=me.last||0;
-  var f=$('#gFeed'); if(gotPts>0){ f.textContent="✅ Correct! +"+gotPts; f.className="big-feed ok"; } else { f.textContent="📖 Answer: "+r.reveal.a; f.className="big-feed no"; }
+  var f=$('#gFeed'); if(gotPts>0){ f.textContent="✅ Correct!  (+1)"; f.className="big-feed ok"; } else { f.textContent="📖 Answer: "+r.reveal.a; f.className="big-feed no"; }
   $('#gWait').textContent="Here's how everyone's doing:";
   $('#gReveal').style.display=""; $('#gLB').innerHTML=leaderboardHTML(Object.keys(r.players||{}).map(function(id){return r.players[id];}));
   $('#gScore').textContent=(me.score||0)+" pts";
