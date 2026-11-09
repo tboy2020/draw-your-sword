@@ -330,7 +330,7 @@ function guestReveal(r){
   if(!r.reveal) return;
   var ci=r.reveal.correctIndex;
   if(ME.chosen!=null){ var ob=$$('#gOpts .opt')[ME.chosen]; if(ob)ob.classList.add('chosen'); }  // keep YOUR pick highlighted
-  $$('#gOpts .opt').forEach(function(b,j){ b.disabled=true; if(j===ci)b.classList.add('right'); else if(!b.classList.contains('chosen'))b.classList.add('dim'); });
+  $$('#gOpts .opt').forEach(function(b,j){ b.disabled=true; if(j===ci){ b.classList.remove('dim'); b.classList.add('right'); } else if(!b.classList.contains('chosen'))b.classList.add('dim'); });
   var me=(r.players&&r.players[pid()])||{}; var gotPts=me.last||0;
   var picked=(r.current&&r.current.options&&ME.chosen!=null)?r.current.options[ME.chosen]:null;
   var f=$('#gFeed');
