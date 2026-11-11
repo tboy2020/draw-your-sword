@@ -843,11 +843,21 @@ function endGame(){
     $('#resTitle').textContent="Victory!";
     $('#resBody').innerHTML='<p>You scored <b>'+top+'</b>! 🎉</p><p class="muted">Keep hiding God\'s word in your heart.</p>';
   }
-  if(G.mode==='campaign' && G.campSection){ campaignCleared(); }
+  if(G.mode==='campaign' && G.campSection){
+    campaignCleared();
+    var _secs=DATA.books.sections||[], _prog=campProgress();
+    if(_secs.length && _secs.every(function(s){return !!_prog.done[s.id];})){
+      // whole Bible cleared — big celebration
+      $('#resEmoji').textContent="🎉";
+      $('#resTitle').textContent="Journey Complete!";
+      $('#resBody').innerHTML='<p>You journeyed through the <b>whole Bible</b> — all '+_secs.length+' sections! 📖⚔️</p><p class="muted">“Thy word have I hid in mine heart, that I might not sin against thee.” — Psalm 119:11</p>';
+      confetti(); setTimeout(confetti,450); setTimeout(confetti,900);
+    }
+  }
   $('#resNext').textContent="🏠 Home"; G._after='game';
   openOverlay('result');
 }
-function quitToModes(){ G.ending=true; shutUp(); closeOverlay('result'); closeOverlay('pass'); show(G.mode==='campaign'?'campaign':'modes'); }
+function quitToModes(){ G.ending=true; shutUp(); closeOverlay('result'); closeOverlay('pass'); if(G.mode==='campaign'){ openCampaign(); /* rebuild map so a just-cleared section shows ✅ and the next unlocks */ } else { show('modes'); } }
 
 /* ============ CAMPAIGN ============ */
 function campProgress(){ return load("dys_camp", {done:{}}); }
@@ -864,6 +874,14 @@ function openCampaign(){
     if(unlocked)d.onclick=function(){ startCampaign(s); };
     grid.appendChild(d);
   });
+  // lasting "journey complete" banner once every section is cleared
+  var allDone = secs.length && secs.every(function(s){ return !!prog.done[s.id]; });
+  var banner=document.getElementById('campDoneBanner');
+  if(allDone){
+    if(!banner){ banner=document.createElement('div'); banner.id='campDoneBanner'; banner.style.cssText='margin:6px 0 12px;padding:12px 14px;border-radius:14px;background:linear-gradient(160deg,#2a9e72,#1f7d59);color:#fff;font-weight:800;text-align:center;line-height:1.4'; grid.parentNode.insertBefore(banner, grid); }
+    banner.innerHTML='🎉 Journey complete! You’ve been through the whole Bible — all '+secs.length+' sections. ⚔️📖';
+    banner.style.display='';
+  } else if(banner){ banner.style.display='none'; }
   show('campaign');
 }
 function startCampaign(s){
