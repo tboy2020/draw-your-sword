@@ -368,15 +368,54 @@ function sndTap(){ beep(420,0.05,"square",0.04); }
 var VOICES=[];
 function loadVoices(){ try{VOICES=window.speechSynthesis.getVoices()||[];}catch(e){} }
 if(window.speechSynthesis){ loadVoices(); window.speechSynthesis.onvoiceschanged=loadVoices; }
+var SEQ=0; // generation token — every new speak/shutUp cancels any sequence already in flight
+function pickVoice(u){ var v=VOICES.filter(function(x){return /en[-_]/i.test(x.lang);})[0]; if(v)u.voice=v; }
 function speak(text){
   if(!G.opt.voice||!window.speechSynthesis||!text)return;
+  SEQ++; // supersede any running slow sequence
   try{window.speechSynthesis.cancel();
     var u=new SpeechSynthesisUtterance(text); u.rate=0.98; u.pitch=1.03;
-    var v=VOICES.filter(function(x){return /en[-_]/i.test(x.lang);})[0]; if(v)u.voice=v;
+    pickVoice(u);
     window.speechSynthesis.speak(u);}catch(e){}
 }
-function shutUp(){ try{window.speechSynthesis.cancel();}catch(e){} }
-function hearAgain(){ if(G.q && G.q.say) speak(G.q.say); }
+// Speak a list of phrases one at a time, SLOWLY, with a real pause between each.
+// onDone fires exactly once when the reading ends (finished, superseded, voice off, or error) —
+// so a caller can safely re-enable a button without ever being left hanging.
+function speakSequence(parts, rate, gapMs, onDone){
+  var fired=false; function done(){ if(fired)return; fired=true; if(onDone){ try{onDone();}catch(e){} } }
+  parts=(parts||[]).map(function(p){return (p==null?'':String(p)).replace(/\s+/g,' ').trim();}).filter(Boolean);
+  if(!G.opt.voice||!window.speechSynthesis||!parts.length){ done(); return; }
+  rate=rate||0.8; gapMs=(gapMs==null?750:gapMs);
+  var tok=++SEQ, i=0;
+  try{window.speechSynthesis.cancel();}catch(e){}
+  function sayNext(){
+    if(tok!==SEQ){ done(); return; }                    // superseded by a newer speak/shutUp
+    if(i>=parts.length){ done(); return; }              // finished the list
+    var u=new SpeechSynthesisUtterance(parts[i++]); u.rate=rate; u.pitch=1.03;
+    pickVoice(u);
+    u.onend=function(){ if(tok!==SEQ){ done(); return; } if(i<parts.length) setTimeout(sayNext, gapMs); else done(); };
+    u.onerror=function(){ if(tok!==SEQ){ done(); return; } if(i<parts.length) setTimeout(sayNext, gapMs); else done(); };
+    try{window.speechSynthesis.speak(u);}catch(e){ done(); }
+  }
+  sayNext();
+}
+function shutUp(){ SEQ++; try{window.speechSynthesis.cancel();}catch(e){} }
+// "Hear it again": read the question/prompt, then each choice one-by-one, slowly, with pauses.
+function hearAgain(){
+  var q=G.q; if(!q) return;
+  var parts=[];
+  if(q.say) parts.push(q.say);
+  var btns=document.querySelectorAll('#playArea .opt, #playArea .bk, #playArea .chip');
+  if(btns.length){
+    parts.push('Here are the choices.');
+    var ord=['One','Two','Three','Four','Five','Six','Seven','Eight'];
+    Array.prototype.forEach.call(btns, function(b, idx){
+      var t=b.textContent.replace(/\s+/g,' ').replace(/^[…\.\s]+/,'').trim(); // strip leading "… "
+      if(t) parts.push((ord[idx]||String(idx+1))+'. '+t);
+    });
+  }
+  speakSequence(parts, 0.8, 750); // slow rate + 0.75s gap between each part
+}
 
 /* ---------- misc ---------- */
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
@@ -715,25 +754,58 @@ function settle(correct, answerText, section, ref, isVerse, bonus, extraMsg){
   showContinue();
 }
 function flash(ok,msg){ var f=$('#feed'); f.textContent=msg; f.className="feed "+(ok?"ok":"no"); }
-// After an answer: show the correct answer + explanation, read it aloud, and WAIT for a tap — no rushing the next player.
+// After an answer: show the correct answer, then READ THE QUESTION WITH THE RIGHT ANSWER aloud
+// (slow, for learning the word) and keep the Next/Pass button GREYED until that reading finishes.
 function showContinue(){
   if($('#contWrap'))return;
-  var q=G.q, info='', say='';
+  var q=G.q, info='', sayParts=[];
   if(q){
-    if(q.kind==='quiz'){ info=q.explain?('💡 '+q.explain):('📖 Answer: '+q.a); say=q.a+(q.explain?'. '+q.explain:''); }
-    else if(q.kind==='verse'){ info='📖 “'+q.prompt+' '+q.a+'” ('+q.ref+')'; say='“'+q.prompt+' '+q.a+'”'; }
-    else if(q.kind==='drill'){ var sn=(q.tbook&&q.tbook.section)?sectionById(q.tbook.section).name:''; info='📖 '+q.ref+' — in '+q.target+(sn?' ('+sn+')':''); say=q.ref+' is in '+q.target; }
-    else if(q.kind==='order'){ info='✅ '+q.correct.join(' → '); say='The right order is '+q.correct.join(', '); }
+    if(q.kind==='quiz'){
+      info=q.explain?('💡 '+q.explain):('📖 Answer: '+q.a);
+      sayParts=[q.q, 'The answer is '+q.a+'.']; if(q.explain) sayParts.push(q.explain);
+    } else if(q.kind==='verse'){
+      info='📖 “'+q.prompt+' '+q.a+'” ('+q.ref+')';
+      sayParts=['“'+q.prompt+' '+q.a+'.”', 'That is '+q.ref+'.'];   // the whole verse, then its reference
+    } else if(q.kind==='drill'){
+      var sn=(q.tbook&&q.tbook.section)?sectionById(q.tbook.section).name:'';
+      info='📖 '+q.ref+' — in '+q.target+(sn?' ('+sn+')':'');
+      sayParts=[q.ref+' is found in the book of '+q.target+'.'];
+    } else if(q.kind==='order'){
+      info='✅ '+q.correct.join(' → ');
+      sayParts=['The right order is '+q.correct.join(', ')+'.'];
+    }
   }
   var last = !G.turn || (G.turn.i>=G.turn.qs.length-1);
   var nextLbl = (last && G.players.length>1) ? 'Pass ▶️' : 'Next ▶️';
   var html='<div id="contWrap" style="margin-top:12px">';
   if(info) html+='<div class="qref" style="color:#8a7a52; margin:2px 0 10px; font-size:15px; line-height:1.35">'+esc(info)+'</div>';
-  html+='<button class="btn" id="contBtn" onclick="continueTurn()">'+nextLbl+'</button></div>';
+  html+='<button class="btn" id="contBtn" onclick="continueTurn()">'+nextLbl+'</button>';
+  html+='<div id="contHint" class="qref" style="color:#8a7a52;margin:8px 0 0;font-size:13px;display:none">🔊 Listen to the answer…</div></div>';
   var area=$('#playArea'); if(area) area.insertAdjacentHTML('beforeend', html);
-  setTimeout(function(){ speak(say); }, 350);
+
+  // Only lock while there is actually something to read aloud; otherwise leave it tappable.
+  var willRead = G.opt.voice && window.speechSynthesis && sayParts.length;
+  lockContinue(!!willRead);
+  var myBtn=$('#contBtn');
+  // Safety net: a flaky/stuck voice must never trap the player — force-unlock after a generous cap.
+  if(willRead){
+    var words=sayParts.join(' ').split(/\s+/).length;
+    var capMs=Math.max(7000, words*520)+3000;
+    setTimeout(function(){ if($('#contBtn')===myBtn) lockContinue(false); }, capMs);
+  }
+  setTimeout(function(){ speakSequence(sayParts, 0.82, 650, function(){ if($('#contBtn')===myBtn) lockContinue(false); }); }, 350);
 }
-function continueTurn(){ if(!$('#play').classList.contains('active'))return; shutUp(); if(G.turn){ G.turn.i++; nextQuestion(); } }
+// Grey out / re-enable the Next/Pass button and show a "listening" hint while the answer is read.
+function lockContinue(locked){
+  var b=$('#contBtn'); if(!b) return;
+  b.disabled=!!locked;
+  b.style.opacity = locked?'0.45':'';
+  b.style.filter  = locked?'grayscale(0.6)':'';
+  b.style.cursor  = locked?'not-allowed':'';
+  b.style.boxShadow = locked?'none':'';
+  var hint=$('#contHint'); if(hint) hint.style.display = locked?'' : 'none';
+}
+function continueTurn(){ var b=$('#contBtn'); if(b&&b.disabled)return; if(!$('#play').classList.contains('active'))return; shutUp(); if(G.turn){ G.turn.i++; nextQuestion(); } }
 
 function finishTurn(){
   $('#progbar').style.width="100%";

@@ -2,7 +2,7 @@
    HTML: network-first (fresh when online, cached when offline).
    Data + assets: cache-first.
    Bump CACHE when you change the app or its data. */
-var CACHE = 'draw-sword-v12';
+var CACHE = 'draw-sword-v14';
 var SHELL = [
   './', './index.html', './manifest.json', './install-button.js',
   './icon-192.png', './icon-512.png', './icon-180.png',
