@@ -370,11 +370,23 @@ function loadVoices(){ try{VOICES=window.speechSynthesis.getVoices()||[];}catch(
 if(window.speechSynthesis){ loadVoices(); window.speechSynthesis.onvoiceschanged=loadVoices; }
 var SEQ=0; // generation token — every new speak/shutUp cancels any sequence already in flight
 function pickVoice(u){ var v=VOICES.filter(function(x){return /en[-_]/i.test(x.lang);})[0]; if(v)u.voice=v; }
+/* Turn written text into something speech reads naturally: a fill-in-the-blank
+   "___" must NOT be read as "underscore underscore underscore". We swap it for a
+   comma so the reader just PAUSES silently where the missing word goes, then tidy
+   any punctuation the swap bumped into (e.g. "my , ." -> "my."). */
+function sayable(s){
+  return String(s==null?'':s)
+    .replace(/_{2,}/g,' , ')
+    .replace(/\s+([,.;:!?])/g,'$1')
+    .replace(/,\s*([.!?;:])/g,'$1')
+    .replace(/\s+/g,' ').trim();
+}
 function speak(text){
-  if(!G.opt.voice||!window.speechSynthesis||!text)return;
+  if(!G.opt.voice||!window.speechSynthesis)return;
+  var say=sayable(text); if(!say)return;
   SEQ++; // supersede any running slow sequence
   try{window.speechSynthesis.cancel();
-    var u=new SpeechSynthesisUtterance(text); u.rate=0.98; u.pitch=1.03;
+    var u=new SpeechSynthesisUtterance(say); u.rate=0.98; u.pitch=1.03;
     pickVoice(u);
     window.speechSynthesis.speak(u);}catch(e){}
 }
@@ -383,7 +395,7 @@ function speak(text){
 // so a caller can safely re-enable a button without ever being left hanging.
 function speakSequence(parts, rate, gapMs, onDone){
   var fired=false; function done(){ if(fired)return; fired=true; if(onDone){ try{onDone();}catch(e){} } }
-  parts=(parts||[]).map(function(p){return (p==null?'':String(p)).replace(/\s+/g,' ').trim();}).filter(Boolean);
+  parts=(parts||[]).map(function(p){return sayable(p);}).filter(Boolean);
   if(!G.opt.voice||!window.speechSynthesis||!parts.length){ done(); return; }
   rate=rate||0.8; gapMs=(gapMs==null?750:gapMs);
   var tok=++SEQ, i=0;
@@ -393,8 +405,10 @@ function speakSequence(parts, rate, gapMs, onDone){
     if(i>=parts.length){ done(); return; }              // finished the list
     var u=new SpeechSynthesisUtterance(parts[i++]); u.rate=rate; u.pitch=1.03;
     pickVoice(u);
-    u.onend=function(){ if(tok!==SEQ){ done(); return; } if(i<parts.length) setTimeout(sayNext, gapMs); else done(); };
-    u.onerror=function(){ if(tok!==SEQ){ done(); return; } if(i<parts.length) setTimeout(sayNext, gapMs); else done(); };
+    // one event per utterance: null both handlers on first fire so a browser that
+    // emits BOTH onend and onerror can't double-advance and skip a pause.
+    var step=function(){ u.onend=u.onerror=null; if(tok!==SEQ){ done(); return; } if(i<parts.length) setTimeout(sayNext, gapMs); else done(); };
+    u.onend=step; u.onerror=step;
     try{window.speechSynthesis.speak(u);}catch(e){ done(); }
   }
   sayNext();
@@ -793,7 +807,8 @@ function showContinue(){
     var capMs=Math.max(7000, words*520)+3000;
     setTimeout(function(){ if($('#contBtn')===myBtn) lockContinue(false); }, capMs);
   }
-  setTimeout(function(){ speakSequence(sayParts, 0.82, 650, function(){ if($('#contBtn')===myBtn) lockContinue(false); }); }, 350);
+  // Start synchronously (no setTimeout): iOS Safari drops speech that begins outside the user gesture.
+  if(willRead) speakSequence(sayParts, 0.82, 650, function(){ if($('#contBtn')===myBtn) lockContinue(false); });
 }
 // Grey out / re-enable the Next/Pass button and show a "listening" hint while the answer is read.
 function lockContinue(locked){
