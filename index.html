@@ -376,6 +376,8 @@ function pickVoice(u){ var v=VOICES.filter(function(x){return /en[-_]/i.test(x.l
    any punctuation the swap bumped into (e.g. "my , ." -> "my."). */
 function sayable(s){
   return String(s==null?'':s)
+    .replace(/(\d)\s*:\s*(\d)/g,'$1 verse $2')         /* Psalm 118:24 -> "118 verse 24", not "118 hours 24" */
+    .replace(/(\d)\s*[-–—]\s*(\d)/g,'$1 to $2') /* verse ranges 1-6 -> "1 to 6" */
     .replace(/_{2,}/g,' , ')
     .replace(/\s+([,.;:!?])/g,'$1')
     .replace(/,\s*([.!?;:])/g,'$1')
