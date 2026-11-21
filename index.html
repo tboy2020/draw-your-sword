@@ -433,6 +433,15 @@ function hearAgain(){
   }
   speakSequence(parts, 0.8, 750); // slow rate + 0.75s gap between each part
 }
+// Auto-read a NEW question the moment it appears (no "Hear it again" tap needed):
+// multiple-choice questions read the prompt + every choice one-by-one, slowly;
+// board/order questions just read their prompt slowly (reading 66 books aloud would be silly).
+function autoRead(){
+  if(!G.opt.voice || !window.speechSynthesis) return;
+  var q=G.q; if(!q) return;
+  if(q.kind==='quiz' || q.kind==='verse'){ hearAgain(); }  // prompt + each choice, slow + paced
+  else { speakSequence([q.say], 0.8, 0); }                  // drill/order: prompt only, slow
+}
 
 /* ---------- misc ---------- */
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
@@ -680,7 +689,7 @@ function renderQuiz(q){
   q.options.forEach(function(o,i){ html+='<button class="opt" onclick="answerQuiz('+i+')">'+esc(o)+'</button>'; });
   html+='</div>';
   $('#playArea').innerHTML=html;
-  speak(q.say);
+  autoRead();
 }
 function answerQuiz(i){
   if(G.q._done)return; G.q._done=true;
@@ -694,7 +703,7 @@ function renderVerse(q){
   html+='<div class="opts" id="optWrap">';
   q.options.forEach(function(o,i){ html+='<button class="opt" onclick="answerVerse('+i+')">… '+esc(o)+'</button>'; });
   html+='</div>';
-  $('#playArea').innerHTML=html; speak(q.say);
+  $('#playArea').innerHTML=html; autoRead();
 }
 function answerVerse(i){
   if(G.q._done)return; G.q._done=true;
@@ -723,7 +732,7 @@ function renderDrill(q){
     h+='</div>';
     html+=h; $('#playArea').innerHTML=html;
   }
-  speak(q.say);
+  autoRead();
 }
 function answerDrill(btn, name){
   if(G.q._done)return; G.q._done=true;
@@ -741,7 +750,7 @@ function renderOrder(q){
   html+='<div class="ordtray" id="ordtray"><span class="muted">tap books below in order →</span></div>';
   html+='<div class="ordpick" id="ordpick">'+shuffle(q.correct).map(function(n){return '<button class="chip" onclick="placeBook(this,\''+n.replace(/'/g,"")+'\')">'+esc(n)+'</button>';}).join('')+'</div>';
   html+='<button class="btn sm" id="ordCheck" onclick="checkOrder()" style="display:none">Check ✓</button>';
-  $('#playArea').innerHTML=html; speak(q.say);
+  $('#playArea').innerHTML=html; autoRead();
 }
 function placeBook(btn,name){
   if(btn.disabled)return; btn.disabled=true; btn.style.visibility="hidden"; sndTap();
