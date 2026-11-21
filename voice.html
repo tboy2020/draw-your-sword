@@ -56,7 +56,7 @@ p.lead{color:var(--ink-soft); font-size:clamp(15px,4vw,19px); margin:.6em auto 1
 .card{background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.12); border-radius:22px; padding:16px; box-shadow:var(--shadow);}
 .muted{color:var(--ink-soft); font-size:13px;}
 .topbar{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;}
-.turn-banner{font-weight:900; font-size:20px; border-radius:16px; padding:8px 14px; background:var(--pc); color:var(--pc-ink); box-shadow:0 5px 0 rgba(0,0,0,.2);}
+.turn-banner{font-weight:900; font-size:20px; border-radius:16px; padding:8px 14px; background:var(--pc); color:var(--pc-ink); box-shadow:0 5px 0 rgba(0,0,0,.2); max-width:48vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .score-chip{background:rgba(255,255,255,.1); border-radius:999px; padding:6px 12px; font-weight:800; font-size:15px; color:var(--ink);}
 .scoreboard{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:6px 0 12px;}
 .sb{border-radius:999px; padding:5px 11px; font-weight:800; font-size:13px; color:#fff; box-shadow:0 3px 0 rgba(0,0,0,.22);}
@@ -197,7 +197,7 @@ canvas#confetti{position:fixed; inset:0; pointer-events:none; z-index:50;}
     <h2 id="resTitle">Great job!</h2>
     <div id="resBody"></div>
     <div class="heard" id="heard4" style="margin-top:8px"></div>
-    <div class="row" style="margin-top:10px">
+    <div class="row" id="resEndRow" style="margin-top:10px">
       <button class="btn" onclick="playAgain()">🔁 Play again</button>
       <button class="btn ghost sm" onclick="quitToHome()">🏠 Home</button>
     </div>
@@ -284,7 +284,10 @@ function sayable(s){
 /* Speak a list of phrases, slowly, with a pause between each. onDone fires once. */
 function speakSeq(parts, rate, gapMs, onDone){
   var fired=false, wd=null;
-  function done(){ if(fired)return; fired=true; if(wd)clearTimeout(wd); setMic('speak',false); if(onDone){ try{onDone();}catch(e){} } }
+  function done(){ if(fired)return; fired=true; if(wd)clearTimeout(wd); setMic('idle', false); if(onDone){ try{onDone();}catch(e){} } }
+  // Superseded by a newer speakSeq / shutUp: finish WITHOUT running onDone — the newer
+  // flow (or MIC.stop) now owns the mic + UI, so a stale onDone must never re-arm the mic.
+  function abandon(){ if(fired)return; fired=true; if(wd)clearTimeout(wd); }
   parts=(parts||[]).map(function(p){return sayable(p);}).filter(Boolean);
   if(!window.speechSynthesis || !parts.length){ done(); return; }
   MIC.muteForSpeech();                 // never let the mic hear our own voice
@@ -294,13 +297,13 @@ function speakSeq(parts, rate, gapMs, onDone){
   // SAFETY WATCHDOG: if a device's TTS stalls / never fires onend, force-finish so the
   // flow (and the mic) is never trapped. Cap = generous estimate of total speaking time.
   var chars=parts.join(' ').length; var capMs=Math.max(5000, chars*95 + parts.length*gapMs + 3000);
-  wd=setTimeout(function(){ if(tok===SEQ){ try{window.speechSynthesis.cancel();}catch(e){} } done(); }, capMs);
+  wd=setTimeout(function(){ if(tok!==SEQ){ abandon(); return; } try{window.speechSynthesis.cancel();}catch(e){} done(); }, capMs);
   try{window.speechSynthesis.cancel();}catch(e){}
   function sayNext(){
-    if(tok!==SEQ){ done(); return; }
+    if(tok!==SEQ){ abandon(); return; }
     if(i>=parts.length){ done(); return; }
     var u=new SpeechSynthesisUtterance(parts[i++]); u.rate=rate; u.pitch=1.04; pickVoice(u);
-    var step=function(){ u.onend=u.onerror=null; if(tok!==SEQ){ done(); return; } if(i<parts.length) setTimeout(sayNext, gapMs); else done(); };
+    var step=function(){ u.onend=u.onerror=null; if(tok!==SEQ){ abandon(); return; } if(i<parts.length) setTimeout(sayNext, gapMs); else done(); };
     u.onend=step; u.onerror=step;
     try{window.speechSynthesis.speak(u); if(window.speechSynthesis.paused)window.speechSynthesis.resume();}catch(e){ done(); }
   }
@@ -356,9 +359,10 @@ var MIC=(function(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   var supported=!!SR;
   var recog=null, wantListen=false, running=false, mode=null, cb=null;
-  var muted=false, denied=false;
-  var idleTimer=null, idleMs=0, onIdle=null;
-  var wakeLock=null;
+  var muted=false, denied=false, gone=false, armConfirmed=false;
+  var idleTimer=null, idleMs=0, onIdle=null, armTimer=null, startTimer=null;
+  var wakeLock=null, endBurst=0, lastEndAt=0;
+  var lastFinal='', lastFinalAt=0;
 
   function acquireWake(){ try{ if(!("wakeLock" in navigator)||document.visibilityState!=="visible")return; navigator.wakeLock.request("screen").then(function(wl){ wakeLock=wl; wl.addEventListener("release",function(){ if(wakeLock===wl)wakeLock=null; }); }).catch(function(){}); }catch(e){} }
   function releaseWake(){ var wl=wakeLock; wakeLock=null; if(wl){ try{wl.release();}catch(e){} } }
@@ -366,10 +370,24 @@ var MIC=(function(){
   function build(){
     recog=new SR(); recog.lang="en-US"; recog.continuous=true; recog.interimResults=true; recog.maxAlternatives=5;
     recog.onresult=onResult;
-    recog.onerror=function(e){ if(e&&e.error==='not-allowed'){ denied=true; onDenied(); } };
-    recog.onend=function(){ running=false; if(wantListen && !muted){ try{recog.start(); running=true;}catch(e){ setTimeout(function(){ if(wantListen&&!muted){ try{recog.start(); running=true;}catch(x){} } },350); } } };
+    recog.onstart=function(){ running=true; armConfirmed=true; endBurst=0; if(armTimer){clearTimeout(armTimer);armTimer=null;} if(wantListen && !muted) setMic('listen', true); };
+    recog.onerror=function(e){
+      var err=e&&e.error;
+      if(err==='not-allowed'||err==='service-not-allowed'){ denied=true; unavailable("🎤 Microphone is blocked — tap the buttons to play"); return; }
+      if(err==='audio-capture'){ unavailable("🎤 No microphone found — tap the buttons to play"); return; }
+      if(err==='network'){ unavailable("🎤 Voice needs internet — tap the buttons for now"); return; }
+      /* 'no-speech' / 'aborted' are normal — let onend decide whether to restart */
+    };
+    recog.onend=function(){ running=false;
+      if(!wantListen || muted) return;
+      // if the engine keeps ending instantly with no result (silent no-op / error loop), degrade to touch
+      var now=Date.now(); endBurst=(now-lastEndAt<700)?(endBurst+1):0; lastEndAt=now;
+      if(endBurst>=6){ unavailable("🎤 Can't hear the mic here — tap the buttons (or open in Chrome/Safari)"); return; }
+      setTimeout(function(){ if(wantListen&&!muted){ try{recog.start();}catch(x){} } }, 500);   // real backoff
+    };
   }
-  function onDenied(){ wantListen=false; setMic('off',true); showHeard('',''); toast("🎤 Microphone is off — you can tap instead"); }
+  function unavailable(msg){ wantListen=false; running=false; gone=true; clearTimers(); setMic('off',true); showHeard('',''); if(msg) toast(msg); if(typeof uiMicLost==='function'){ try{uiMicLost();}catch(e){} } }
+  function clearTimers(){ if(idleTimer){clearTimeout(idleTimer);idleTimer=null;} if(armTimer){clearTimeout(armTimer);armTimer=null;} if(startTimer){clearTimeout(startTimer);startTimer=null;} }
 
   function onResult(e){
     if(muted||!wantListen) return;
@@ -380,7 +398,13 @@ var MIC=(function(){
       else interim+=' '+(r[0]&&r[0].transcript||'');
     }
     if(interim.trim()) showHeard(interim, false);
-    if(finalText.trim()){
+    var ft=finalText.trim();
+    if(ft){
+      // DROP a duplicate final — Samsung Internet / some Android emit the same final twice
+      // ~150ms apart, which would double-append a spelled letter.
+      var low=ft.toLowerCase(), now=Date.now();
+      if(low===lastFinal && (now-lastFinalAt)<800){ lastFinalAt=now; return; }
+      lastFinal=low; lastFinalAt=now;
       showHeard(finalText, true);
       resetIdle();
       var toks=MATCH(mode, finalText, alts);
@@ -389,33 +413,62 @@ var MIC=(function(){
   }
   function resetIdle(){ if(idleTimer){ clearTimeout(idleTimer); } if(idleMs>0){ idleTimer=setTimeout(function(){ if(wantListen && onIdle){ try{onIdle();}catch(e){} } }, idleMs); } }
 
+  // Returning to the page: the OS released the wake lock and may have ended recognition — restore both.
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='visible' && wantListen && !muted){ acquireWake(); if(!running){ try{recog.start();}catch(e){} } }
+  });
+
   return {
     supported:supported,
     denied:function(){return denied;},
+    blocked:function(){return denied||gone;},   // hard-denied OR failed-to-arm this attempt
+    prime:function(){ // call inside the Start-tap gesture so iOS shows the mic prompt now
+      if(!supported) return; if(!recog) build();
+      try{ recog.start(); running=true; }catch(e){}
+    },
     listen:function(m, onTok, opts){
       opts=opts||{};
-      if(!supported){ return; }
-      mode=m; cb=onTok; muted=false;
+      if(!supported){ setMic('off',true); return; }
+      mode=m; cb=onTok; muted=false; wantListen=true; armConfirmed=false; gone=false;
       idleMs=opts.idleMs||0; onIdle=opts.onIdle||null;
-      wantListen=true;
+      lastFinal=''; lastFinalAt=0;
       if(!recog) build();
-      try{ if(!running){ recog.start(); running=true; } }catch(e){ /* already started */ }
-      setMic('listen', true); acquireWake(); resetIdle();
+      if(startTimer)clearTimeout(startTimer);
+      // short settle so a freshly-armed recognizer doesn't catch the prompt's audio tail
+      startTimer=setTimeout(function(){
+        startTimer=null; if(!wantListen||muted) return;
+        try{ if(!running) recog.start(); }catch(e){ /* already running is fine */ }
+        acquireWake(); resetIdle();
+        if(armTimer)clearTimeout(armTimer);
+        // if the engine silently no-ops (in-app browser): no onstart + no result -> degrade to touch
+        armTimer=setTimeout(function(){ armTimer=null; if(wantListen && !armConfirmed && !running){ unavailable("🎤 Can't reach the mic here — tap the buttons (or open in Chrome/Safari)"); } }, 3500);
+      }, 250);
+      setMic('listen', true);
     },
-    stop:function(){ wantListen=false; muted=false; if(idleTimer)clearTimeout(idleTimer); try{ if(recog&&running){ recog.stop(); } }catch(e){} releaseWake(); setMic('idle', false); },
+    stop:function(){ wantListen=false; muted=false; clearTimers(); try{ if(recog&&running){ recog.stop(); } }catch(e){} releaseWake(); setMic('idle', false); },
     muteForSpeech:function(){ // suspend the mic while we talk
-      muted=true; if(idleTimer)clearTimeout(idleTimer);
+      muted=true; clearTimers();
       try{ if(recog&&running){ recog.abort(); } }catch(e){}
       running=false;
-    },
-    restartAfterSpeech:function(){ // called if we were listening before speaking (rare path)
-      if(wantListen){ muted=false; try{ if(!running){ recog.start(); running=true; } }catch(e){} setMic('listen',true); }
     }
   };
 })();
 
-/* on splash, report support */
-(function(){ var n=$('#supportNote'); if(!MIC.supported){ n.innerHTML="⚠️ This browser has no voice recognition. You can still use the <a href='index.html' style='color:#ffe9a8'>classic tap version</a>."; } })();
+/* on splash, warn when the environment silently blocks the mic (in-app browsers, iOS home-screen) */
+(function(){
+  var n=$('#supportNote'); if(!n) return;
+  var ua=navigator.userAgent||'';
+  var inApp=/FBAN|FBAV|FB_IAB|Instagram|Line\/|WhatsApp|WeChat|MicroMessenger|Snapchat|Twitter|TikTok|GSA/i.test(ua);
+  var iosStandalone=(navigator.standalone===true)||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
+  var box="display:block;background:rgba(255,107,138,.16);border:2px solid var(--no);border-radius:14px;padding:10px 12px;color:#fff;font-weight:800;line-height:1.4";
+  if(!MIC.supported){
+    n.innerHTML="<span style='"+box+"'>⚠️ This browser can't do voice. Tap <b>Classic (tap) version</b> below, or open this link in <b>Chrome</b> / <b>Safari</b>.</span>";
+  } else if(inApp){
+    n.innerHTML="<span style='"+box+"'>🎤 For voice, open this in your <b>browser app</b> — not inside this app. Tap <b>•••</b> or <b>Share</b> → <b>Open in browser</b> (Chrome or Safari).</span>";
+  } else if(iosStandalone){
+    n.innerHTML="<span style='"+box+"'>🎤 Voice works in <b>Safari</b>, not the home-screen app. Open this link in Safari to play hands-free.</span>";
+  }
+})();
 
 /* ---------- mic chip UI ---------- */
 function setMic(state, onBtnText){
@@ -439,7 +492,7 @@ function micTap(){ // user tapped the mic pill — nudge / re-prompt the current
 /* ======================= MATCHERS ======================= */
 function norm(s){ return (' '+String(s).toLowerCase()+' ').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' '); }
 var LETTERMAP={
- a:'A',ay:'A',eh:'A', b:'B',bee:'B',be:'B', c:'C',see:'C',sea:'C',cee:'C', d:'D',dee:'D',
+ a:'A',ay:'A', b:'B',bee:'B',be:'B', c:'C',see:'C',sea:'C',cee:'C', d:'D',dee:'D',
  e:'E',ee:'E', f:'F',ef:'F',eff:'F', g:'G',gee:'G', h:'H',aitch:'H',ach:'H',haitch:'H',
  i:'I',eye:'I', j:'J',jay:'J', k:'K',kay:'K', l:'L',el:'L',ell:'L', m:'M',em:'M',
  n:'N',en:'N', o:'O',oh:'O',owe:'O', p:'P',pee:'P',pea:'P', q:'Q',cue:'Q',queue:'Q',kew:'Q',
@@ -451,8 +504,6 @@ var LETTERMAP={
  /* names used as letters */ apple:'A',ball:'B',cat:'C',dog:'D',fox:'F',hat:'H',ice:'I',king:'K',
  moon:'M',nut:'N',sun:'S',van:'V'
 };
-var NUMWORDS={ one:1,won:1,wun:1,'1':1, two:2,to:2,too:2,'2':2, three:3,tree:3,free:3,'3':3,
-  four:4,for:4,fore:4,'4':4, first:1,second:2,third:3,fourth:4 };
 function matchLetters(text){
   var t=' '+norm(text)+' ';
   t=t.replace(/\bdouble\s*(you|u)\b/g,' w ').replace(/\bx\s*ray\b/g,' x ');
@@ -470,37 +521,43 @@ function matchLetters(text){
   return out;
 }
 function matchCount(text){
-  var t=norm(text);
-  if(/\b(just me|solo|alone|myself|only me|one player)\b/.test(t)) return [{n:1}];
-  var map={one:1,won:1,two:2,to:2,too:2,three:3,tree:3,four:4,for:4,five:5,six:6};
-  for(var k in map){ if(t.indexOf(' '+k+' ')>=0) return [{n:map[k]}]; }
+  var t=norm(text), only=t.trim();
+  var strong={one:1,two:2,three:3,four:4,five:5,six:6};              // substring-safe number words
+  for(var k in strong){ if(t.indexOf(' '+k+' ')>=0) return [{n:strong[k]}]; }
   var m=t.match(/\b([1-6])\b/); if(m) return [{n:+m[1]}];
+  // "just me" only when it's essentially the WHOLE utterance (not "just me and my brother")
+  if(/^(just me|solo|alone|myself|only me|one player|just myself|me|won)$/.test(only)) return [{n:1}];
   return [];
 }
 function matchColor(text){ var c=colorByWord(norm(text)); return c?[{color:c}]:[]; }
 function matchConfirm(text){
   var t=norm(text);
-  if(/\b(yes|yeah|yep|yup|correct|right|keep|good|okay|ok|sure|perfect|that is right|thats right)\b/.test(t)) return [{yes:true}];
-  if(/\b(no|nope|again|re ?spell|respell|wrong|change|redo|not right|do over)\b/.test(t)) return [{no:true}];
+  // NO first, so "no, that's not right" can't be caught by a bare "right" in the YES branch
+  if(/\b(no|nope|nah|na|again|re ?spell|respell|wrong|change|redo|not right|isn t right|not correct|do over|uh uh|nuh uh)\b/.test(t)) return [{no:true}];
+  if(/\b(yes|yeah|yep|yup|correct|right|keep|keep it|good|okay|ok|sure|perfect|that is right|thats right|mhm|uh huh|mm hmm)\b/.test(t)) return [{yes:true}];
   return [];
 }
-function matchReady(text){ var t=norm(text); if(/\b(ready|i am ready|im ready|go|okay|ok|set|here|yes|start|begin)\b/.test(t)) return [{ready:true}]; return []; }
+function matchReady(text){ var t=norm(text); if(/\b(ready|all set|lets go|let s go|ready now|i am ready|im ready)\b/.test(t)) return [{ready:true}]; return []; }
 function matchAnswer(text){
-  var t=norm(text);
-  if(/\b(repeat|again|say again|one more time|hear again|read again|what was it)\b/.test(t)) return [{cmd:'repeat'}];
-  if(/\b(pass|skip|next|dont know|do not know|i dont know|no idea|pass it)\b/.test(t)) return [{cmd:'pass'}];
-  if(/\b(stop|pause|quiet|be quiet|touch mode|let me tap|tap)\b/.test(t)) return [{cmd:'stop'}];
-  if(/\b(play again|again please)\b/.test(t)) return [{cmd:'again'}];
-  if(/\b(home|quit|exit|menu)\b/.test(t)) return [{cmd:'home'}];
-  // number word?
-  for(var k in NUMWORDS){ if(t.indexOf(' '+k+' ')>=0){ return [{n:NUMWORDS[k]}]; } }
-  var m=t.match(/\b([1-6])\b/); if(m) return [{n:+m[1]}];
-  // option text match
-  if(STATE.optTexts){
-    var best=-1, bestLen=0, spoken=t.trim();
+  var t=norm(text), only=t.trim();
+  if(/\b(play again|again please|go again|one more game)\b/.test(t)) return [{cmd:'again'}];   // before bare "again"
+  if(/\b(home|quit|exit|main menu)\b/.test(t)) return [{cmd:'home'}];
+  if(/\b(repeat|say again|one more time|hear again|read again|read it again|what was it|again)\b/.test(t)) return [{cmd:'repeat'}];
+  if(/\b(pass|skip|dont know|do not know|i dont know|no idea|pass it|pass this one)\b/.test(t)) return [{cmd:'pass'}];
+  if(/\b(stop|pause|be quiet|quiet|touch mode|let me tap)\b/.test(t)) return [{cmd:'stop'}];
+  // numbers: a digit, or a strong word as a substring, or a weak homophone ONLY if it's the whole utterance
+  var dm=t.match(/\b([1-6])\b/); if(dm) return [{n:+dm[1]}];
+  var strong={one:1,two:2,three:3,four:4,five:5,six:6,first:1,second:2,third:3,fourth:4,fifth:5,sixth:6};
+  for(var k in strong){ if(t.indexOf(' '+k+' ')>=0) return [{n:strong[k]}]; }
+  var weak={won:1,wun:1,to:2,too:2,tree:3,free:3,for:4,fore:4};
+  if(weak[only]) return [{n:weak[only]}];
+  // option text match — only on a solid overlap, never a 1-3 char stray like "no"/"a"/"uh"
+  if(STATE.optTexts && only.length>=3){
+    var best=-1, bestLen=0;
     for(var i=0;i<STATE.optTexts.length;i++){
-      var o=norm(STATE.optTexts[i]).trim(); if(o.length<2) continue;
-      if(spoken.indexOf(o)>=0 || o.indexOf(spoken)>=0){ if(o.length>bestLen){ bestLen=o.length; best=i; } }
+      var o=norm(STATE.optTexts[i]).trim(); if(o.length<3) continue;
+      var hit=(only.indexOf(o)>=0) || (o.indexOf(only)>=0 && only.length>=4);
+      if(hit && o.length>bestLen){ bestLen=o.length; best=i; }
     }
     if(best>=0) return [{n:best+1}];
   }
@@ -557,17 +614,24 @@ var G={ tier:'teen' };
 /* ---------- entry ---------- */
 function startVoice(){
   unlockAudio(); shutUp();
-  if(!DATA.ready){ setTimeout(startVoice, 180); return; }
   STATE.players=[]; STATE.num=1; STATE.idx=0;
   show('setup'); $('#setupHead').textContent='Setup';
+  // Prime the recognizer INSIDE this tap so iOS Safari shows the mic prompt now (not from a
+  // later async callback, which it would silently ignore). The welcome speech is also spoken
+  // from this gesture (askCount runs synchronously), so TTS unlocks on iOS too.
+  MIC.prime();
   askCount();
 }
+// The quiz questions need content.json; setup does not. If data is still loading when setup
+// finishes, wait briefly for it so the first question is real, not the placeholder.
+function whenDataReady(fn){ if(DATA.ready){ fn(); } else { setTimeout(function(){ whenDataReady(fn); }, 150); } }
 function quitSetup(){ MIC.stop(); shutUp(); show('splash'); }
 function quitToHome(){ MIC.stop(); shutUp(); closeOverlay('pass'); closeOverlay('result'); show('splash'); }
 function openHow(){ openOverlay('how'); }
 
 /* ---------- STEP 1: how many players ---------- */
 function askCount(){
+  STATE.step='count';
   $('#setupStep').textContent='How many playing?';
   var html='<p class="muted">Say a number from one to six — or say “just me”.</p>';
   html+='<div class="numgrid">'; for(var i=1;i<=6;i++){ html+='<button onclick="onCount({n:'+i+'})">'+i+'</button>'; } html+='</div>';
@@ -590,9 +654,8 @@ function onCount(tok){
 function usedColors(){ var u={}; STATE.players.forEach(function(p){u[p.color.k]=1;}); return u; }
 function freeColor(){ var u=usedColors(); for(var i=0;i<COLORS.length;i++){ if(!u[COLORS[i].k]) return COLORS[i]; } return COLORS[STATE.players.length%COLORS.length]; }
 function askName(){
-  STATE.nameBuf='';
+  STATE.nameBuf=''; STATE.step='name';
   var ord=STATE.num>1 ? ('Player '+(STATE.idx+1)) : 'You';
-  $('#setupStep').textContent = (STATE.num>1? ('Player '+(STATE.idx+1)+' — spell your name') : 'Spell your name');
   renderNameBody();
   STATE.reprompt=function(){ speakSeq(['Spell your name. Say each letter. Say "done" when finished.'],0.9,0,function(){ listenStep('letters', onLetterTok, 'Say a letter, or say "done".', 14000); }); };
   var intro = STATE.num>1 ? (ord+', spell your name.') : 'Now, spell your name.';
@@ -603,14 +666,26 @@ function askName(){
 function renderNameBody(){
   var shown = STATE.nameBuf ? esc(STATE.nameBuf) : '';
   var pron = STATE.nameBuf.replace(/[^A-Za-z ]/g,'').length>=2 ? ('sounds like: '+esc(pronChunks(STATE.nameBuf).replace(/-/g,' · '))) : '';
+  var noMic = (!MIC.supported || MIC.blocked());
+  var who = STATE.num>1 ? ('Player '+(STATE.idx+1)) : '';
+  $('#setupStep').textContent = noMic ? ((who?who+' — ':'')+'type your name') : ((who?who+' — ':'')+'spell your name');
   var html='<div class="namebox">'+shown+'<span class="car">|</span></div>';
   html+='<div class="namepron">'+pron+'</div>';
-  html+='<div class="cmdrow"><button onclick="onLetterTok({cmd:\'back\'})" class="g">⌫ Back</button><button onclick="onLetterTok({cmd:\'done\'})">✓ Done</button><button onclick="onLetterTok({cmd:\'skip\'})" class="g">Skip</button></div>';
-  html+='<details class="fallbox"><summary>⌨️ Or type the name instead</summary>'+
-        '<input class="namein" id="typeName" maxlength="16" placeholder="type name" value="'+esc(STATE.nameBuf)+'" oninput="STATE.nameBuf=this.value" onkeydown="if(event.key===\'Enter\')onLetterTok({cmd:\'done\'})">'+
-        '<div><button class="btn sm" onclick="onLetterTok({cmd:\'done\'})">Use this name ✓</button></div></details>';
+  if(noMic){
+    // mic unavailable -> show the keyboard entry up front and visible, not hidden in a details
+    html+='<input class="namein" id="typeName" maxlength="16" placeholder="type your name" value="'+esc(STATE.nameBuf)+'" oninput="STATE.nameBuf=this.value" onkeydown="if(event.key===\'Enter\')onLetterTok({cmd:\'done\'})">';
+    html+='<div class="cmdrow"><button onclick="onLetterTok({cmd:\'done\'})">✓ Use this name</button>'+(STATE.num>1?'<button onclick="onLetterTok({cmd:\'skip\'})" class="g">Skip</button>':'')+'</div>';
+  } else {
+    html+='<div class="cmdrow"><button onclick="onLetterTok({cmd:\'back\'})" class="g">⌫ Back</button><button onclick="onLetterTok({cmd:\'done\'})">✓ Done</button><button onclick="onLetterTok({cmd:\'skip\'})" class="g">Skip</button></div>';
+    html+='<details class="fallbox"><summary>⌨️ Or type the name instead</summary>'+
+          '<input class="namein" id="typeName" maxlength="16" placeholder="type name" value="'+esc(STATE.nameBuf)+'" oninput="STATE.nameBuf=this.value" onkeydown="if(event.key===\'Enter\')onLetterTok({cmd:\'done\'})">'+
+          '<div><button class="btn sm" onclick="onLetterTok({cmd:\'done\'})">Use this name ✓</button></div></details>';
+  }
   $('#setupBody').innerHTML=html;
+  if(noMic){ var ti=$('#typeName'); if(ti){ setTimeout(function(){ try{ti.focus();}catch(e){} }, 60); } }
 }
+// Called when the mic becomes unavailable mid-flow: re-render the name step so its type box shows.
+function uiMicLost(){ if($('#setup').classList.contains('active') && STATE.step==='name'){ renderNameBody(); } }
 function onLetterTok(tok){
   if(!tok) return;
   if(tok.letter!=null){ if(STATE.nameBuf.length<16){ STATE.nameBuf+=tok.letter; sndTick(); } renderNameBody(); return; }
@@ -627,7 +702,7 @@ function cleanName(s){ s=String(s||'').replace(/\s+/g,' ').trim(); if(!s) return
 
 /* ---------- STEP 3: read the name back, confirm ---------- */
 function confirmName(wasSkip){
-  var nm=STATE.nameBuf;
+  var nm=STATE.nameBuf; STATE.step='confirm';
   $('#setupStep').textContent='Is this right?';
   var html='<div class="namebox" style="letter-spacing:2px">'+esc(nm)+'</div>';
   html+='<div class="namepron">I will call you <b style="color:#fff">'+esc(nm)+'</b></div>';
@@ -651,6 +726,7 @@ function onConfirmName(tok){
 
 /* ---------- STEP 4: pick a color ---------- */
 function askColor(){
+  STATE.step='color'; STATE.colorPending=true;
   $('#setupStep').textContent=STATE.nameBuf+' — pick a color';
   var free=freeColor(), u=usedColors();
   var sw=''; COLORS.forEach(function(c){ var taken=u[c.k]; sw+='<span class="sw'+(taken?'':'')+'" style="background:'+c.hex+';'+(taken?'opacity:.3;pointer-events:none':'')+'" onclick="onColor({color:COLORS_byK(\''+c.k+'\')})"><small>'+c.k+(taken?' ✓':'')+'</small></span>'; });
@@ -664,6 +740,8 @@ function askColor(){
 function COLORS_byK(k){ for(var i=0;i<COLORS.length;i++){ if(COLORS[i].k===k) return COLORS[i]; } return COLORS[0]; }
 function onColor(tok){
   if(!tok||!tok.color) return;
+  if(!STATE.colorPending) return;            // ignore a second tap/voice during the "X is <color>" bridge
+  STATE.colorPending=false;
   var c=tok.color; var u=usedColors();
   if(u[c.k]){ // taken — pick nearest free quietly
     c=freeColor();
@@ -672,11 +750,12 @@ function onColor(tok){
   STATE.players.push({ name:STATE.nameBuf, color:c, tier:G.tier, score:0 });
   STATE.idx++;
   if(STATE.idx>=STATE.num){ finishSetup(); }
-  else { speakSeq([STATE.nameBuf+' is '+c.k+'.'], 0.95, 0, function(){ askName(); }); }
+  else { STATE.reprompt=function(){ askName(); }; speakSeq([STATE.nameBuf+' is '+c.k+'.'], 0.95, 0, function(){ askName(); }); }
 }
 
 /* ---------- finish setup ---------- */
 function finishSetup(){
+  STATE.step='ready';
   var names=STATE.players.map(function(p){return p.name;});
   var roster = names.length===1 ? names[0] : (names.slice(0,-1).join(', ')+' and '+names[names.length-1]);
   $('#setupStep').textContent='Everyone is ready!';
@@ -699,11 +778,13 @@ function renderScoreboard(){
 function setPC(p){ document.documentElement.style.setProperty('--pc',p.color.hex); document.documentElement.style.setProperty('--pc-ink', inkFor(p.color.hex)); }
 function beginGame(){
   shutUp();
-  STATE.players.forEach(function(p){p.score=0;});
-  usedQ={};
-  STATE.order=[]; for(var i=0;i<STATE.players.length;i++){ STATE.order.push(i); }
-  STATE.seq=0;                 // which turn in the order we're on
-  show('play'); nextTurn();
+  whenDataReady(function(){
+    STATE.players.forEach(function(p){p.score=0;});
+    usedQ={};
+    STATE.order=[]; for(var i=0;i<STATE.players.length;i++){ STATE.order.push(i); }
+    STATE.seq=0;                 // which turn in the order we're on
+    show('play'); nextTurn();
+  });
 }
 function nextTurn(){
   if(STATE.seq>=STATE.order.length){ return endGame(); }
@@ -746,7 +827,7 @@ function nextQuestion(){
 }
 function optOrdinal(i){ return ['One','Two','Three','Four','Five'][i]||String(i+1); }
 function readQuestion(){
-  var q=STATE.q; if(!q) return;
+  var q=STATE.q; if(!q || q._done) return;   // never re-read an already-answered question (e.g. tapping Repeat during the result)
   var parts=[q.q, 'Here are your choices.'];
   q.options.forEach(function(o,i){ parts.push(optOrdinal(i)+'. '+o); });
   parts.push('Say the number, or say the answer.');
@@ -783,24 +864,28 @@ function finishTurn(){
   $('#progbar').style.width='100%';
   var p=STATE.players[STATE.curIdx];
   STATE.seq++;
-  if(STATE.players.length>1){
+  var more = STATE.seq < STATE.order.length;            // is there a next player after this one?
+  if(STATE.players.length>1 && more){
+    var nextP=STATE.players[STATE.order[STATE.seq]];
     $('#resEmoji').textContent='⚔️'; $('#resTitle').textContent=p.name+"'s turn done";
-    $('#resBody').innerHTML='<p>You got <b>'+STATE.turn.correct+' / '+STATE.turn.qs.length+'</b> right.</p>';
+    // ALWAYS a visible touch button to continue — never trap a player if "ready" is misheard
+    $('#resBody').innerHTML='<p>You got <b>'+STATE.turn.correct+' / '+STATE.turn.qs.length+'</b> right.</p>'+
+      '<button class="btn big" onclick="closeResultMid()">Pass to '+esc(nextP.name)+' ▶️</button>';
+    $('#resEndRow').style.display='none';                // hide Play-again / Home until the game ends
     openOverlay('result');
-    $('#result .btn').style.display='none';            // hide play-again/home mid-game
-    STATE.reprompt=function(){ speakSeq(['Say "ready" to pass on.'],0.95,0,function(){ listenStep('ready', function(t){ if(t&&t.ready){ closeResultMid(); } }, 'Say "ready".', 10000); }); };
-    speakSeq([p.name+', you got '+STATE.turn.correct+' out of '+STATE.turn.qs.length+'.', 'Say "ready" to pass to the next player.'], 0.95, 350, function(){
+    STATE.reprompt=function(){ speakSeq(['Say "ready" to pass on, or tap the button.'],0.95,0,function(){ listenStep('ready', function(t){ if(t&&t.ready){ closeResultMid(); } }, 'Say "ready".', 10000); }); };
+    speakSeq([p.name+', you got '+STATE.turn.correct+' out of '+STATE.turn.qs.length+'.', 'Say "ready" to pass to '+nextP.name+', or tap the button.'], 0.95, 350, function(){
       listenStep('ready', function(t){ if(t&&t.ready){ closeResultMid(); } }, 'Say "ready".', 10000);
     });
   } else {
     endGame();
   }
 }
-function closeResultMid(){ MIC.stop(); $$('#result .btn').forEach(function(b){b.style.display='';}); closeOverlay('result'); nextTurn(); }
+function closeResultMid(){ MIC.stop(); $('#resEndRow').style.display=''; closeOverlay('result'); nextTurn(); }
 
 function endGame(){
   shutUp(); MIC.stop();
-  $$('#result .btn').forEach(function(b){b.style.display='';});
+  $('#resEndRow').style.display='';
   var ranked=STATE.players.slice().sort(function(a,b){return (b.score||0)-(a.score||0);});
   var top=ranked[0].score||0; var winners=STATE.players.filter(function(p){return (p.score||0)===top;}); var tie=winners.length>1;
   sndWin(); confetti();
@@ -819,14 +904,14 @@ function endGame(){
     listenStep('answer', onEndTok, 'Say "play again" or "home".', 12000);
   });
 }
-function onEndTok(tok){ if(!tok)return; if(tok.cmd==='again'){ playAgain(); } else if(tok.cmd==='home'){ quitToHome(); } }
+function onEndTok(tok){ if(!tok)return; if(tok.cmd==='again'||tok.cmd==='repeat'){ playAgain(); } else if(tok.cmd==='home'){ quitToHome(); } }
 function playAgain(){ MIC.stop(); closeOverlay('result'); beginGame(); }
 
 /* ---------- confetti ---------- */
 var cc=$('#confetti'), cx=cc.getContext('2d'), cparts=[];
 function sizeCanvas(){ cc.width=innerWidth; cc.height=innerHeight; }
 sizeCanvas(); addEventListener('resize',sizeCanvas);
-function confetti(){ for(var i=0;i<90;i++){cparts.push({x:innerWidth/2,y:innerHeight/3,vx:(Math.random()-.5)*9,vy:Math.random()*-9-3,g:.28,c:pick(['#f4c430','#36c08a','#4aa3ff','#ff6b8a','#b084ff','#ff9f43']),s:Math.random()*7+4,life:70});} if(cparts.length)requestAnimationFrame(ctick); }
+function confetti(){ if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return; for(var i=0;i<90;i++){cparts.push({x:innerWidth/2,y:innerHeight/3,vx:(Math.random()-.5)*9,vy:Math.random()*-9-3,g:.28,c:pick(['#f4c430','#36c08a','#4aa3ff','#ff6b8a','#b084ff','#ff9f43']),s:Math.random()*7+4,life:70});} if(cparts.length)requestAnimationFrame(ctick); }
 function ctick(){ cx.clearRect(0,0,cc.width,cc.height); for(var i=cparts.length-1;i>=0;i--){var p=cparts[i]; p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.life--; cx.fillStyle=p.c; cx.fillRect(p.x,p.y,p.s,p.s); if(p.life<=0||p.y>cc.height)cparts.splice(i,1);} if(cparts.length)requestAnimationFrame(ctick); else cx.clearRect(0,0,cc.width,cc.height); }
 
 /* ---------- init ---------- */
