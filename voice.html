@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Draw Your Sword — Voice</title>
+<meta name="description" content="Draw Your Sword — Hands-Free. A talking, listening Bible quiz you play with your voice: spell your name, pick your color, and answer out loud. No tapping needed. Works offline.">
+<meta name="theme-color" content="#1b1446">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Draw Your Sword Voice">
+<style>
+:root{
+  --font:"Baloo 2","Comic Sans MS","Segoe UI Rounded",-apple-system,system-ui,"Trebuchet MS",sans-serif;
+  --ink:#f4efff; --ink-soft:#c3bbe6; --paper:#fbf6e9; --paper-ink:#3a2f12;
+  --bg1:#241a5c; --bg2:#17123f; --bg3:#3a1d6e;
+  --gold:#f4c430; --gold2:#e8a90c; --steel:#cfd8ff;
+  --pc:#f4c430; --pc-ink:#2a2208; --pc-soft:#fff3cf;
+  --ok:#36c08a; --no:#ff6b8a;
+  --shadow:0 10px 0 rgba(0,0,0,.28), 0 18px 34px rgba(10,6,40,.45);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; margin:0;}
+body{font-family:var(--font); color:var(--ink); text-align:center; overflow-x:hidden;
+  -webkit-user-select:none; user-select:none; touch-action:manipulation;
+  background:
+    radial-gradient(1000px 600px at 12% -8%, #3a2a7e, transparent 60%),
+    radial-gradient(900px 600px at 110% 6%, #5a2a8e, transparent 55%),
+    radial-gradient(1100px 800px at 50% 120%, #2a1a66, transparent 60%),
+    linear-gradient(165deg, var(--bg1), var(--bg2));
+  background-attachment:fixed; min-height:100%;}
+.star{position:fixed; z-index:0; color:#fff; opacity:.5; pointer-events:none; font-size:14px; animation:tw 4s ease-in-out infinite;}
+@keyframes tw{0%,100%{opacity:.2; transform:scale(.8)}50%{opacity:.9; transform:scale(1.15)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@media (prefers-reduced-motion:reduce){.star,.floaty{animation:none} *{animation-duration:.001s !important}}
+.wrap{position:relative; z-index:1; max-width:860px; margin:0 auto; padding:16px 16px 40px;}
+.screen{display:none; animation:pop .25s ease;}
+.screen.active{display:block;}
+@keyframes pop{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
+h1.brand{font-size:clamp(32px,9vw,56px); line-height:1; margin:.1em 0 0;
+  background:linear-gradient(90deg,#fff,#ffe9a8,#f4c430,#fff); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 4px 10px rgba(244,196,48,.35));}
+.sword{font-size:clamp(50px,15vw,96px); line-height:1; margin:6px 0 0; animation:float 5s ease-in-out infinite;}
+.verse-sub{color:var(--ink-soft); font-size:clamp(13px,3.6vw,16px); margin:.5em auto 0; max-width:520px; font-style:italic;}
+p.lead{color:var(--ink-soft); font-size:clamp(15px,4vw,19px); margin:.6em auto 1.1em; max-width:540px;}
+.btn{font-family:var(--font); font-weight:800; border:0; cursor:pointer; border-radius:999px;
+  padding:15px 24px; font-size:19px; color:#2a2208; background:linear-gradient(180deg,#ffdf7a,var(--gold));
+  box-shadow:0 7px 0 #b9860b, 0 12px 22px rgba(0,0,0,.3); margin:7px; transition:transform .08s, box-shadow .08s;}
+.btn:active{transform:translateY(5px); box-shadow:0 2px 0 #b9860b, 0 6px 12px rgba(0,0,0,.3);}
+.btn.ghost{background:rgba(255,255,255,.08); color:var(--ink); box-shadow:0 5px 0 rgba(0,0,0,.25); border:2px solid rgba(255,255,255,.18);}
+.btn.sm{padding:10px 16px; font-size:16px;}
+.btn.big{padding:18px 30px; font-size:22px; display:block; width:100%; max-width:420px; margin:12px auto;}
+.btn.wide{display:block; width:100%; max-width:460px; margin:10px auto;}
+.row{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;}
+.card{background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.12); border-radius:22px; padding:16px; box-shadow:var(--shadow);}
+.muted{color:var(--ink-soft); font-size:13px;}
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;}
+.turn-banner{font-weight:900; font-size:20px; border-radius:16px; padding:8px 14px; background:var(--pc); color:var(--pc-ink); box-shadow:0 5px 0 rgba(0,0,0,.2);}
+.score-chip{background:rgba(255,255,255,.1); border-radius:999px; padding:6px 12px; font-weight:800; font-size:15px; color:var(--ink);}
+.scoreboard{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:6px 0 12px;}
+.sb{border-radius:999px; padding:5px 11px; font-weight:800; font-size:13px; color:#fff; box-shadow:0 3px 0 rgba(0,0,0,.22);}
+.sb.me{outline:3px solid #fff; outline-offset:1px;}
+.qcard{background:var(--paper); color:var(--paper-ink); border-radius:22px; padding:18px 16px; box-shadow:var(--shadow); margin:8px 0 14px;}
+.qtag{display:inline-block; font-size:12px; font-weight:800; color:#fff; background:var(--pc); border-radius:999px; padding:3px 12px; margin-bottom:8px;}
+.qtext{font-size:clamp(19px,5vw,25px); font-weight:800; line-height:1.25; margin:4px 0 2px;}
+.qref{color:#8a7a52; font-size:14px; margin-top:6px; font-weight:700;}
+.opts{display:grid; grid-template-columns:1fr; gap:10px; margin:8px 0;}
+.opt{position:relative; font-family:var(--font); font-weight:800; font-size:18px; border:3px solid #e3d6ae; background:#fff; color:#3a2f12;
+  border-radius:16px; padding:15px 14px 15px 52px; cursor:pointer; box-shadow:0 5px 0 #d8c89a; transition:transform .06s; text-align:left;}
+.opt:active{transform:translateY(3px); box-shadow:0 2px 0 #d8c89a;}
+.opt .num{position:absolute; left:10px; top:50%; transform:translateY(-50%); width:32px; height:32px; border-radius:50%;
+  background:var(--gold); color:#2a2208; font-weight:900; display:flex; align-items:center; justify-content:center; font-size:17px; box-shadow:0 2px 0 #b9860b;}
+.opt.ok{background:#d9f7ec; border-color:var(--ok); box-shadow:0 5px 0 #2a9e72; color:#0b5d41;}
+.opt.ok .num{background:var(--ok); color:#06402c;}
+.opt.no{background:#ffe1e8; border-color:var(--no); box-shadow:0 5px 0 #d84d6b; color:#8a1733;}
+.opt.no .num{background:var(--no); color:#6b0f26;}
+.opt.dim{opacity:.5;}
+.progress{height:10px; background:rgba(255,255,255,.12); border-radius:999px; overflow:hidden; margin:4px 0 12px;}
+.progress > i{display:block; height:100%; background:linear-gradient(90deg,var(--gold),#ffe9a8); width:0;}
+.feed{min-height:26px; font-weight:800; font-size:18px; margin:4px 0;}
+.feed.ok{color:#9af5cf;} .feed.no{color:#ffb3c4;}
+/* MIC chip + heard line */
+.micbar{display:flex; align-items:center; justify-content:center; gap:10px; margin:10px 0 6px; min-height:40px;}
+.micpill{display:inline-flex; align-items:center; gap:9px; font-weight:800; font-size:15px; border-radius:999px; padding:9px 16px;
+  background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.16); color:var(--ink); cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,.22);}
+.micpill .dot{width:13px; height:13px; border-radius:50%; background:#8a84b0; flex:none;}
+.micpill.listen{border-color:var(--ok); background:rgba(54,192,138,.14);} .micpill.listen .dot{background:var(--ok); animation:pulse 1s infinite;}
+.micpill.speak{border-color:var(--gold); background:rgba(244,196,48,.14);} .micpill.speak .dot{background:var(--gold); animation:pulse .7s infinite;}
+.micpill.off{border-color:var(--no); background:rgba(255,107,138,.12);} .micpill.off .dot{background:var(--no);}
+@keyframes pulse{0%,100%{transform:scale(1); opacity:1}50%{transform:scale(1.5); opacity:.55}}
+.heard{min-height:22px; color:var(--ink-soft); font-size:15px; font-style:italic; margin:2px 0 4px;}
+.heard b{color:#fff; font-style:normal;}
+/* name build */
+.namebox{font-size:clamp(34px,11vw,60px); font-weight:900; letter-spacing:6px; min-height:1.2em; margin:6px 0 2px; color:#fff; word-break:break-word;}
+.namebox .car{color:var(--gold); animation:blinkc 1s steps(1) infinite;}
+@keyframes blinkc{0%,100%{opacity:1}50%{opacity:0}}
+.namepron{color:var(--ink-soft); font-size:16px; min-height:20px; margin-bottom:6px;}
+.swatch{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:8px 0;}
+.sw{width:46px; height:46px; border-radius:50%; cursor:pointer; border:3px solid rgba(255,255,255,.25); box-shadow:0 4px 0 rgba(0,0,0,.25); position:relative;}
+.sw.sel{border-color:#fff; transform:scale(1.12);}
+.sw small{position:absolute; left:50%; bottom:-20px; transform:translateX(-50%); font-size:11px; color:var(--ink-soft); white-space:nowrap;}
+.numgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-width:320px; margin:10px auto;}
+.numgrid button, .cmdrow button{font-family:var(--font); font-weight:800; font-size:20px; border:0; cursor:pointer; border-radius:16px; padding:16px 0;
+  color:#2a2208; background:linear-gradient(180deg,#ffe79a,var(--gold)); box-shadow:0 5px 0 #b9860b;}
+.cmdrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:8px 0;}
+.cmdrow button{font-size:16px; padding:12px 18px;}
+.cmdrow button.g{background:rgba(255,255,255,.1); color:var(--ink); box-shadow:0 5px 0 rgba(0,0,0,.25); border:2px solid rgba(255,255,255,.18);}
+input.namein{font-family:var(--font); font-size:19px; padding:12px 14px; border-radius:13px; border:2px solid rgba(255,255,255,.2); background:rgba(255,255,255,.95); color:#24204a; width:100%; max-width:320px; margin:5px 0;}
+.steplabel{font-weight:800; font-size:clamp(20px,5.5vw,27px); margin:6px 0 2px;}
+.fallbox{margin-top:12px; border-top:1px dashed rgba(255,255,255,.18); padding-top:10px;}
+.fallbox summary{cursor:pointer; color:var(--ink-soft); font-size:13px; list-style:none;}
+.fallbox summary::-webkit-details-marker{display:none;}
+/* overlays */
+.overlay{position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; padding:18px;
+  background:rgba(12,8,34,.72); backdrop-filter:blur(3px);}
+.overlay.show{display:flex;}
+.sheet{background:linear-gradient(170deg,#2b2066,#1b1446); border:3px solid rgba(255,255,255,.14); border-radius:24px; padding:22px; max-width:440px; width:100%; box-shadow:var(--shadow); max-height:90vh; overflow:auto;}
+.sheet h2{margin:.1em 0 .4em; font-size:26px;}
+.pass-big{font-size:58px; margin:4px 0;}
+.statline{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.1); font-size:15px;}
+.statline b{color:var(--gold);}
+.toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); background:#2a2066; border:2px solid var(--gold); color:#fff; font-weight:800; padding:11px 18px; border-radius:999px; opacity:0; transition:.25s; z-index:60; box-shadow:var(--shadow);}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+.linkrow{margin-top:14px;}
+.linkrow a,.linkrow button{color:var(--ink-soft); font-size:14px; text-decoration:underline; background:none; border:0; cursor:pointer; font-family:var(--font); margin:0 7px;}
+footer.credit{color:var(--ink-soft); font-size:12px; margin-top:22px; opacity:.8;}
+canvas#confetti{position:fixed; inset:0; pointer-events:none; z-index:50;}
+</style>
+</head>
+<body>
+<canvas id="confetti"></canvas>
+
+<div class="wrap">
+
+  <!-- SPLASH -->
+  <section id="splash" class="screen active">
+    <div class="sword">⚔️🎙️</div>
+    <h1 class="brand">Draw Your Sword</h1>
+    <p class="verse-sub">“Take… the sword of the Spirit, which is the word of God.” — Ephesians 6:17</p>
+    <p class="lead"><b>Hands-free.</b> It talks, it listens. Spell your name, pick your color, and answer out loud — no tapping needed. 🎙️</p>
+    <button class="btn big" onclick="startVoice()">🎙️ Start — hands-free</button>
+    <div class="row">
+      <button class="btn ghost sm" onclick="openHow()">❓ How it works</button>
+      <a class="btn ghost sm" href="index.html" style="text-decoration:none">✋ Classic (tap) version</a>
+    </div>
+    <p class="muted" id="supportNote" style="margin-top:12px"></p>
+    <div class="linkrow"><a href="https://tboy2020.github.io/Kids-Learning-Arcade/">⬅️ Kids Learning Arcade</a></div>
+    <footer class="credit">Best in Chrome or real Safari · works offline · private · KJV &amp; WEB · Glory to God alone 🙏</footer>
+  </section>
+
+  <!-- SETUP -->
+  <section id="setup" class="screen">
+    <div class="topbar"><button class="btn ghost sm" onclick="quitSetup()">⬅️ Back</button><b id="setupHead">Setup</b><span></span></div>
+    <div class="card">
+      <div class="steplabel" id="setupStep">How many playing?</div>
+      <div class="micbar"><button class="micpill" id="micPill" onclick="micTap()"><span class="dot"></span><span id="micTxt">…</span></button></div>
+      <div class="heard" id="heard"></div>
+      <div id="setupBody"></div>
+    </div>
+  </section>
+
+  <!-- PLAY -->
+  <section id="play" class="screen">
+    <div class="topbar">
+      <button class="btn ghost sm" onclick="quitToHome()">⬅️ Quit</button>
+      <span class="turn-banner" id="turnBanner">Player</span>
+      <span class="score-chip" id="scoreChip">0</span>
+    </div>
+    <div class="scoreboard" id="scoreboard"></div>
+    <div class="progress"><i id="progbar"></i></div>
+    <div id="playArea"></div>
+    <div class="micbar"><button class="micpill" id="micPill2" onclick="micTap()"><span class="dot"></span><span id="micTxt2">…</span></button>
+      <button class="micpill" onclick="repeatQuestion()"><span>🔊</span><span>Repeat</span></button></div>
+    <div class="heard" id="heard2"></div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+</div>
+
+<!-- PASS overlay -->
+<div class="overlay" id="pass">
+  <div class="sheet" style="text-align:center">
+    <div class="pass-big" id="passEmoji">🤝</div>
+    <h2 id="passTitle">Pass to…</h2>
+    <p class="muted" id="passSub">Hand the device over, then say “ready”</p>
+    <div class="micbar"><button class="micpill" id="micPill3" onclick="micTap()"><span class="dot"></span><span id="micTxt3">…</span></button></div>
+    <div class="heard" id="heard3"></div>
+    <button class="btn big" onclick="onReady()">I'm ready ▶️</button>
+  </div>
+</div>
+
+<!-- RESULT overlay -->
+<div class="overlay" id="result">
+  <div class="sheet" style="text-align:center">
+    <div class="pass-big" id="resEmoji">🎉</div>
+    <h2 id="resTitle">Great job!</h2>
+    <div id="resBody"></div>
+    <div class="heard" id="heard4" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="playAgain()">🔁 Play again</button>
+      <button class="btn ghost sm" onclick="quitToHome()">🏠 Home</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOW overlay -->
+<div class="overlay" id="how">
+  <div class="sheet">
+    <h2>🎙️ How hands-free works</h2>
+    <ul style="text-align:left; line-height:1.55">
+      <li>Tap <b>Start</b> once and allow the microphone. After that, no tapping is needed.</li>
+      <li>It <b>talks</b> to you and then <b>listens</b>. When you see the green 🎤, speak.</li>
+      <li><b>Spell your name</b> letter by letter, then say <b>“done.”</b> It reads your name back — say <b>“yes”</b> to keep it or <b>“again”</b> to re-spell.</li>
+      <li>Pick a color by saying it: “gold”, “blue”, “green”…</li>
+      <li>Answer a question by saying the <b>number</b> (“one”, “two”…) or the <b>answer word</b>. Say <b>“repeat”</b> to hear it again, or <b>“pass”</b> to skip.</li>
+      <li>Passing to the next player? Just say <b>“ready.”</b></li>
+    </ul>
+    <p class="muted" style="text-align:left">📱 Works best in <b>Chrome</b> (Android) or <b>real Safari</b> (iPhone) — not inside WhatsApp/Instagram, where the mic is blocked. If it ever mishears, every step still has a button you can tap.</p>
+    <button class="btn big" onclick="closeOverlay('how')">Got it ✨</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =================== Draw Your Sword — Hands-Free =================== */
+var $=function(s,r){return (r||document).querySelector(s);};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+function show(id){ $$('.screen').forEach(function(s){s.classList.remove('active');}); var el=$('#'+id); if(el)el.classList.add('active'); window.scrollTo(0,0); }
+function openOverlay(id){$('#'+id).classList.add('show');}
+function closeOverlay(id){$('#'+id).classList.remove('show');}
+function toast(msg){ var t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},1800); }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;} return a; }
+function LS(){ try{return window.localStorage;}catch(e){return null;} }
+function load(k,def){ try{var v=LS().getItem(k); return v==null?def:JSON.parse(v);}catch(e){return def;} }
+function save(k,v){ try{LS().setItem(k,JSON.stringify(v));}catch(e){} }
+
+/* ---------- colors ---------- */
+var COLORS=[
+ {k:'gold',   hex:'#f4c430', words:['gold','yellow']},
+ {k:'blue',   hex:'#4aa3ff', words:['blue']},
+ {k:'green',  hex:'#36c08a', words:['green']},
+ {k:'red',    hex:'#ff5d73', words:['red']},
+ {k:'purple', hex:'#b084ff', words:['purple','violet']},
+ {k:'orange', hex:'#ff9f43', words:['orange']},
+ {k:'teal',   hex:'#2dd4bf', words:['teal','cyan']},
+ {k:'pink',   hex:'#f06595', words:['pink']}
+];
+function colorByWord(t){ for(var i=0;i<COLORS.length;i++){ for(var j=0;j<COLORS[i].words.length;j++){ if(t.indexOf(COLORS[i].words[j])>=0) return COLORS[i]; } } return null; }
+function inkFor(hex){ try{var c=hex.substring(1); var r=parseInt(c.substr(0,2),16),g=parseInt(c.substr(2,2),16),b=parseInt(c.substr(4,2),16); return (r*299+g*587+b*114)/1000>150?'#2a2208':'#fff';}catch(e){return '#2a2208';} }
+
+/* ---------- sound fx ---------- */
+var AC=null;
+function unlockAudio(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} if(AC&&AC.state==="suspended")AC.resume(); }
+function beep(freq,dur,type,vol){ if(!AC)return; try{var o=AC.createOscillator(),g=AC.createGain(); o.type=type||"sine"; o.frequency.value=freq; g.gain.value=vol||0.08; o.connect(g); g.connect(AC.destination); var t=AC.currentTime; g.gain.setValueAtTime(vol||0.08,t); g.gain.exponentialRampToValueAtTime(0.0001,t+(dur||0.15)); o.start(t); o.stop(t+(dur||0.15));}catch(e){} }
+function sndGood(){ beep(660,0.1,"triangle",0.09); setTimeout(function(){beep(990,0.16,"triangle",0.09);},90); }
+function sndBad(){ beep(200,0.18,"sawtooth",0.06); }
+function sndWin(){ [523,659,784,1046].forEach(function(f,i){setTimeout(function(){beep(f,0.18,"triangle",0.1);},i*120);}); }
+function sndTick(){ beep(520,0.04,"square",0.05); }
+
+/* ======================= READER (text to speech) ======================= */
+var VOICES=[];
+function loadVoices(){ try{VOICES=window.speechSynthesis.getVoices()||[];}catch(e){} }
+if(window.speechSynthesis){ loadVoices(); window.speechSynthesis.onvoiceschanged=loadVoices; }
+function pickVoice(u){
+  if(!VOICES.length) return;
+  var pref=["Google US English","Samantha","Microsoft Aria","Microsoft Jenny","Google UK English Female"];
+  for(var p=0;p<pref.length;p++){ for(var i=0;i<VOICES.length;i++){ if(VOICES[i].name && VOICES[i].name.indexOf(pref[p])>=0){ u.voice=VOICES[i]; return; } } }
+  var en=VOICES.filter(function(x){return /en[-_]/i.test(x.lang);})[0]; if(en)u.voice=en;
+}
+var SEQ=0;
+function sayable(s){
+  return String(s==null?'':s)
+    .replace(/\b([123])\s+(Samuel|Kings|Chronicles|Corinthians|Thessalonians|Timothy|Peter|John)\b/g,function(m,d,b){return (d==='1'?'First':d==='2'?'Second':'Third')+' '+b;})
+    .replace(/(\d)\s*:\s*(\d)/g,'$1 verse $2')
+    .replace(/(\d)\s*[-–—]\s*(\d)/g,'$1 to $2')
+    .replace(/_{2,}/g,' , ')
+    .replace(/\s+([,.;:!?])/g,'$1').replace(/,\s*([.!?;:])/g,'$1')
+    .replace(/\s+/g,' ').trim();
+}
+/* Speak a list of phrases, slowly, with a pause between each. onDone fires once. */
+function speakSeq(parts, rate, gapMs, onDone){
+  var fired=false, wd=null;
+  function done(){ if(fired)return; fired=true; if(wd)clearTimeout(wd); setMic('speak',false); if(onDone){ try{onDone();}catch(e){} } }
+  parts=(parts||[]).map(function(p){return sayable(p);}).filter(Boolean);
+  if(!window.speechSynthesis || !parts.length){ done(); return; }
+  MIC.muteForSpeech();                 // never let the mic hear our own voice
+  setMic('speak', false);
+  rate=rate||0.84; gapMs=(gapMs==null?620:gapMs);
+  var tok=++SEQ, i=0;
+  // SAFETY WATCHDOG: if a device's TTS stalls / never fires onend, force-finish so the
+  // flow (and the mic) is never trapped. Cap = generous estimate of total speaking time.
+  var chars=parts.join(' ').length; var capMs=Math.max(5000, chars*95 + parts.length*gapMs + 3000);
+  wd=setTimeout(function(){ if(tok===SEQ){ try{window.speechSynthesis.cancel();}catch(e){} } done(); }, capMs);
+  try{window.speechSynthesis.cancel();}catch(e){}
+  function sayNext(){
+    if(tok!==SEQ){ done(); return; }
+    if(i>=parts.length){ done(); return; }
+    var u=new SpeechSynthesisUtterance(parts[i++]); u.rate=rate; u.pitch=1.04; pickVoice(u);
+    var step=function(){ u.onend=u.onerror=null; if(tok!==SEQ){ done(); return; } if(i<parts.length) setTimeout(sayNext, gapMs); else done(); };
+    u.onend=step; u.onerror=step;
+    try{window.speechSynthesis.speak(u); if(window.speechSynthesis.paused)window.speechSynthesis.resume();}catch(e){ done(); }
+  }
+  sayNext();
+}
+function shutUp(){ SEQ++; try{window.speechSynthesis.cancel();}catch(e){} }
+
+/* ---- Name pronunciation: syllable strategy (from sound-steps) ---- */
+/* Known respellings the en-US voice says well. Add more over time. */
+var NAME_SAY={
+  taiwo:"tie-woh", kehinde:"keh-heen-day", idowu:"ee-doh-woo",
+  inumidun:"ee-noo-mee-doon", adegoke:"ah-day-gaw-kay", adegboyega:"ah-day-boh-yay-gah",
+  oluwaseun:"oh-loo-wah-shay-oon", oluwatobi:"oh-loo-wah-taw-bee", oluwaseyi:"oh-loo-wah-shay-ee",
+  ayomide:"ah-yoh-mee-day", temidayo:"teh-mee-dah-yoh", temiloluwa:"teh-mee-loh-loo-wah",
+  folake:"foh-lah-kay", bolanle:"baw-lahn-lay", damilola:"dah-mee-law-lah",
+  chidinma:"chee-deen-mah", chiamaka:"chee-ah-mah-kah", chukwuemeka:"choo-koo-eh-meh-kah",
+  emeka:"eh-meh-kah", ngozi:"en-gaw-zee", obinna:"oh-bee-nah",
+  ifeoluwa:"ee-fay-oh-loo-wah", ayotunde:"ah-yoh-toon-day", olamide:"oh-lah-mee-day",
+  mobolaji:"moh-boh-lah-jee", abimbola:"ah-beem-boh-lah", funmilayo:"foon-mee-lah-yoh",
+  oluwadamilare:"oh-loo-wah-dah-mee-lah-ray", enitan:"ay-nee-tahn"
+};
+function syllabify(w){
+  w=String(w||'').toLowerCase().replace(/[^a-z]/g,'');
+  if(w.length<=3) return w?[w]:[];
+  var V="aeiouy", isV=function(c){return V.indexOf(c)>=0;};
+  var parts=[], start=0, n=w.length, i;
+  for(i=1;i<n-1;i++){
+    if(!isV(w[i]) && isV(w[i-1])){
+      var j=i; while(j<n && !isV(w[j])) j++;
+      if(j>=n) break;               // trailing consonants — keep with current chunk
+      var clusterLen=j-i, breakAt=(clusterLen===1)? i : i+1;
+      parts.push(w.slice(start,breakAt)); start=breakAt; i=breakAt;
+    }
+  }
+  parts.push(w.slice(start));
+  return parts.filter(Boolean);
+}
+/* Read a name clearly: spell letters, then say it slowly by syllables. onDone after. */
+function sayName(name, onDone){
+  var key=String(name||'').toLowerCase().replace(/[^a-z]/g,'');
+  var letters=String(name||'').toUpperCase().replace(/[^A-Z]/g,'').split('').join(', ');
+  var slow = NAME_SAY[key] ? NAME_SAY[key] : syllabify(name).join('-');
+  // letters first (guarantees clarity), then the blended name twice-slow
+  speakSeq([letters, slow.replace(/-/g,' '), name], 0.8, 520, onDone);
+}
+function pronChunks(name){
+  var key=String(name||'').toLowerCase().replace(/[^a-z]/g,'');
+  return (NAME_SAY[key] ? NAME_SAY[key] : syllabify(name).join('-'));
+}
+
+/* ======================= LISTENER (speech to text) ======================= */
+var MIC=(function(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  var supported=!!SR;
+  var recog=null, wantListen=false, running=false, mode=null, cb=null;
+  var muted=false, denied=false;
+  var idleTimer=null, idleMs=0, onIdle=null;
+  var wakeLock=null;
+
+  function acquireWake(){ try{ if(!("wakeLock" in navigator)||document.visibilityState!=="visible")return; navigator.wakeLock.request("screen").then(function(wl){ wakeLock=wl; wl.addEventListener("release",function(){ if(wakeLock===wl)wakeLock=null; }); }).catch(function(){}); }catch(e){} }
+  function releaseWake(){ var wl=wakeLock; wakeLock=null; if(wl){ try{wl.release();}catch(e){} } }
+
+  function build(){
+    recog=new SR(); recog.lang="en-US"; recog.continuous=true; recog.interimResults=true; recog.maxAlternatives=5;
+    recog.onresult=onResult;
+    recog.onerror=function(e){ if(e&&e.error==='not-allowed'){ denied=true; onDenied(); } };
+    recog.onend=function(){ running=false; if(wantListen && !muted){ try{recog.start(); running=true;}catch(e){ setTimeout(function(){ if(wantListen&&!muted){ try{recog.start(); running=true;}catch(x){} } },350); } } };
+  }
+  function onDenied(){ wantListen=false; setMic('off',true); showHeard('',''); toast("🎤 Microphone is off — you can tap instead"); }
+
+  function onResult(e){
+    if(muted||!wantListen) return;
+    var finalText='', interim='', alts=[];
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      var r=e.results[i];
+      if(r.isFinal){ finalText+=' '+(r[0]&&r[0].transcript||''); for(var a=0;a<r.length;a++) alts.push((r[a]&&r[a].transcript)||''); }
+      else interim+=' '+(r[0]&&r[0].transcript||'');
+    }
+    if(interim.trim()) showHeard(interim, false);
+    if(finalText.trim()){
+      showHeard(finalText, true);
+      resetIdle();
+      var toks=MATCH(mode, finalText, alts);
+      if(toks && toks.length && cb){ for(var k=0;k<toks.length;k++){ cb(toks[k]); } }
+    }
+  }
+  function resetIdle(){ if(idleTimer){ clearTimeout(idleTimer); } if(idleMs>0){ idleTimer=setTimeout(function(){ if(wantListen && onIdle){ try{onIdle();}catch(e){} } }, idleMs); } }
+
+  return {
+    supported:supported,
+    denied:function(){return denied;},
+    listen:function(m, onTok, opts){
+      opts=opts||{};
+      if(!supported){ return; }
+      mode=m; cb=onTok; muted=false;
+      idleMs=opts.idleMs||0; onIdle=opts.onIdle||null;
+      wantListen=true;
+      if(!recog) build();
+      try{ if(!running){ recog.start(); running=true; } }catch(e){ /* already started */ }
+      setMic('listen', true); acquireWake(); resetIdle();
+    },
+    stop:function(){ wantListen=false; muted=false; if(idleTimer)clearTimeout(idleTimer); try{ if(recog&&running){ recog.stop(); } }catch(e){} releaseWake(); setMic('idle', false); },
+    muteForSpeech:function(){ // suspend the mic while we talk
+      muted=true; if(idleTimer)clearTimeout(idleTimer);
+      try{ if(recog&&running){ recog.abort(); } }catch(e){}
+      running=false;
+    },
+    restartAfterSpeech:function(){ // called if we were listening before speaking (rare path)
+      if(wantListen){ muted=false; try{ if(!running){ recog.start(); running=true; } }catch(e){} setMic('listen',true); }
+    }
+  };
+})();
+
+/* on splash, report support */
+(function(){ var n=$('#supportNote'); if(!MIC.supported){ n.innerHTML="⚠️ This browser has no voice recognition. You can still use the <a href='index.html' style='color:#ffe9a8'>classic tap version</a>."; } })();
+
+/* ---------- mic chip UI ---------- */
+function setMic(state, onBtnText){
+  var pills=[$('#micPill'),$('#micPill2'),$('#micPill3')];
+  var txts=[$('#micTxt'),$('#micTxt2'),$('#micTxt3')];
+  var label = state==='listen' ? '🎤 Listening…' : state==='speak' ? '🔊 Reading…' : state==='off' ? '🎤 Tap to talk' : '🎤 …';
+  pills.forEach(function(p){ if(!p)return; p.classList.remove('listen','speak','off'); if(state==='listen')p.classList.add('listen'); else if(state==='speak')p.classList.add('speak'); else if(state==='off')p.classList.add('off'); });
+  txts.forEach(function(t){ if(t)t.textContent=label; });
+}
+function showHeard(text, isFinal){
+  text=String(text||'').trim();
+  var html = text ? ('“<b>'+esc(text)+'</b>”') : '';
+  ['#heard','#heard2','#heard3','#heard4'].forEach(function(s){ var el=$(s); if(el)el.innerHTML=html; });
+}
+function micTap(){ // user tapped the mic pill — nudge / re-prompt the current step
+  if(!MIC.supported){ toast("No voice on this browser — tap the buttons"); return; }
+  if(MIC.denied()){ toast("Microphone was blocked — use the buttons, or allow mic in your browser"); return; }
+  if(STATE.reprompt){ STATE.reprompt(); }
+}
+
+/* ======================= MATCHERS ======================= */
+function norm(s){ return (' '+String(s).toLowerCase()+' ').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' '); }
+var LETTERMAP={
+ a:'A',ay:'A',eh:'A', b:'B',bee:'B',be:'B', c:'C',see:'C',sea:'C',cee:'C', d:'D',dee:'D',
+ e:'E',ee:'E', f:'F',ef:'F',eff:'F', g:'G',gee:'G', h:'H',aitch:'H',ach:'H',haitch:'H',
+ i:'I',eye:'I', j:'J',jay:'J', k:'K',kay:'K', l:'L',el:'L',ell:'L', m:'M',em:'M',
+ n:'N',en:'N', o:'O',oh:'O',owe:'O', p:'P',pee:'P',pea:'P', q:'Q',cue:'Q',queue:'Q',kew:'Q',
+ r:'R',ar:'R',are:'R', s:'S',es:'S',ess:'S', t:'T',tee:'T',tea:'T', u:'U',you:'U',you:'U',ewe:'U',
+ v:'V',vee:'V', w:'W',dub:'W', x:'X',ex:'X', y:'Y',why:'Y',wy:'Y', z:'Z',zee:'Z',zed:'Z',
+ /* NATO */ alpha:'A',bravo:'B',charlie:'C',delta:'D',echo:'E',foxtrot:'F',golf:'G',hotel:'H',
+ india:'I',juliet:'J',juliett:'J',kilo:'K',lima:'L',mike:'M',november:'N',oscar:'O',papa:'P',
+ quebec:'Q',romeo:'R',sierra:'S',tango:'T',uniform:'U',victor:'V',whiskey:'W',yankee:'Y',zulu:'Z',
+ /* names used as letters */ apple:'A',ball:'B',cat:'C',dog:'D',fox:'F',hat:'H',ice:'I',king:'K',
+ moon:'M',nut:'N',sun:'S',van:'V'
+};
+var NUMWORDS={ one:1,won:1,wun:1,'1':1, two:2,to:2,too:2,'2':2, three:3,tree:3,free:3,'3':3,
+  four:4,for:4,fore:4,'4':4, first:1,second:2,third:3,fourth:4 };
+function matchLetters(text){
+  var t=' '+norm(text)+' ';
+  t=t.replace(/\bdouble\s*(you|u)\b/g,' w ').replace(/\bx\s*ray\b/g,' x ');
+  var words=t.trim().split(/\s+/), out=[];
+  for(var i=0;i<words.length;i++){
+    var w=words[i]; if(!w) continue;
+    if(w==='done'||w==='finished'||w==='finish'||w==='complete'){ out.push({cmd:'done'}); continue; }
+    if(w==='back'||w==='delete'||w==='undo'||w==='remove'||w==='erase'||w==='oops'){ out.push({cmd:'back'}); continue; }
+    if(w==='clear'||w==='restart'){ out.push({cmd:'clear'}); continue; }
+    if(w==='skip'||w==='nevermind'){ out.push({cmd:'skip'}); continue; }
+    if(w==='space'){ out.push({letter:' '}); continue; }
+    if(LETTERMAP[w]){ out.push({letter:LETTERMAP[w]}); continue; }
+    if(w.length===1 && /[a-z]/.test(w)){ out.push({letter:w.toUpperCase()}); continue; }
+  }
+  return out;
+}
+function matchCount(text){
+  var t=norm(text);
+  if(/\b(just me|solo|alone|myself|only me|one player)\b/.test(t)) return [{n:1}];
+  var map={one:1,won:1,two:2,to:2,too:2,three:3,tree:3,four:4,for:4,five:5,six:6};
+  for(var k in map){ if(t.indexOf(' '+k+' ')>=0) return [{n:map[k]}]; }
+  var m=t.match(/\b([1-6])\b/); if(m) return [{n:+m[1]}];
+  return [];
+}
+function matchColor(text){ var c=colorByWord(norm(text)); return c?[{color:c}]:[]; }
+function matchConfirm(text){
+  var t=norm(text);
+  if(/\b(yes|yeah|yep|yup|correct|right|keep|good|okay|ok|sure|perfect|that is right|thats right)\b/.test(t)) return [{yes:true}];
+  if(/\b(no|nope|again|re ?spell|respell|wrong|change|redo|not right|do over)\b/.test(t)) return [{no:true}];
+  return [];
+}
+function matchReady(text){ var t=norm(text); if(/\b(ready|i am ready|im ready|go|okay|ok|set|here|yes|start|begin)\b/.test(t)) return [{ready:true}]; return []; }
+function matchAnswer(text){
+  var t=norm(text);
+  if(/\b(repeat|again|say again|one more time|hear again|read again|what was it)\b/.test(t)) return [{cmd:'repeat'}];
+  if(/\b(pass|skip|next|dont know|do not know|i dont know|no idea|pass it)\b/.test(t)) return [{cmd:'pass'}];
+  if(/\b(stop|pause|quiet|be quiet|touch mode|let me tap|tap)\b/.test(t)) return [{cmd:'stop'}];
+  if(/\b(play again|again please)\b/.test(t)) return [{cmd:'again'}];
+  if(/\b(home|quit|exit|menu)\b/.test(t)) return [{cmd:'home'}];
+  // number word?
+  for(var k in NUMWORDS){ if(t.indexOf(' '+k+' ')>=0){ return [{n:NUMWORDS[k]}]; } }
+  var m=t.match(/\b([1-6])\b/); if(m) return [{n:+m[1]}];
+  // option text match
+  if(STATE.optTexts){
+    var best=-1, bestLen=0, spoken=t.trim();
+    for(var i=0;i<STATE.optTexts.length;i++){
+      var o=norm(STATE.optTexts[i]).trim(); if(o.length<2) continue;
+      if(spoken.indexOf(o)>=0 || o.indexOf(spoken)>=0){ if(o.length>bestLen){ bestLen=o.length; best=i; } }
+    }
+    if(best>=0) return [{n:best+1}];
+  }
+  return [];
+}
+function MATCH(mode, text, alts){
+  var all=[text].concat(alts||[]);
+  function tryAll(fn){ for(var i=0;i<all.length;i++){ var r=fn(all[i]); if(r && r.length) return r; } return []; }
+  if(mode==='letters'){ // letters: use primary only (alts add noise), but allow 'done' from any
+    var r=matchLetters(text); if(r.length) return r;
+    return tryAll(function(x){ var rr=matchLetters(x); return rr.filter(function(o){return o.cmd;}); });
+  }
+  if(mode==='count')   return tryAll(matchCount);
+  if(mode==='color')   return tryAll(matchColor);
+  if(mode==='confirm') return tryAll(matchConfirm);
+  if(mode==='ready')   return tryAll(matchReady);
+  if(mode==='answer')  return tryAll(matchAnswer);
+  return [];
+}
+
+/* ======================= DATA ======================= */
+var DATA={content:null, ready:false};
+function loadData(){
+  fetch('data/content.json').then(function(r){return r.ok?r.json():null;}).then(function(j){ DATA.content=j||{sections:{},verses:{}}; DATA.ready=true; }).catch(function(){ DATA.content={sections:{},verses:{}}; DATA.ready=true; });
+}
+loadData();
+function tierRank(t){ return t==='kid'?0:t==='teen'?1:2; }
+function quizPool(tier){
+  var C=(DATA.content&&DATA.content.sections)||{}, out=[];
+  Object.keys(C).forEach(function(k){ (C[k]||[]).forEach(function(q){ q._sec=k; out.push(q); }); });
+  var r=tierRank(tier), fit=out.filter(function(q){ return tierRank(q.tier||'teen')<=r; });
+  return fit.length?fit:out;
+}
+var usedQ={};
+function pickUnused(pool){
+  var avail=[]; for(var i=0;i<pool.length;i++){ if(!usedQ[pool[i].q]) avail.push(pool[i]); }
+  if(!avail.length){ usedQ={}; avail=pool; }
+  var c=avail[Math.floor(Math.random()*avail.length)]; usedQ[c.q]=1; return c;
+}
+function makeQuiz(tier){
+  var pool=quizPool(tier);
+  if(!pool.length) return {q:'More questions are on the way!', a:'Amen', options:['Amen','Amen','Amen','Amen'], ref:''};
+  var q=pickUnused(pool);
+  var opts=shuffle((q.options||[q.a]).slice(0,4));
+  if(opts.indexOf(q.a)<0){ opts[0]=q.a; opts=shuffle(opts); }
+  return {q:q.q, a:q.a, options:opts, ref:q.ref, explain:q.explain, section:q._sec};
+}
+
+/* ======================= STATE MACHINE ======================= */
+var STATE={ players:[], num:1, idx:0, nameBuf:'', reprompt:null, optTexts:null, turn:null, order:[], round:0 };
+var ROUND_QS=5;   // questions per player
+var G={ tier:'teen' };
+
+/* ---------- entry ---------- */
+function startVoice(){
+  unlockAudio(); shutUp();
+  if(!DATA.ready){ setTimeout(startVoice, 180); return; }
+  STATE.players=[]; STATE.num=1; STATE.idx=0;
+  show('setup'); $('#setupHead').textContent='Setup';
+  askCount();
+}
+function quitSetup(){ MIC.stop(); shutUp(); show('splash'); }
+function quitToHome(){ MIC.stop(); shutUp(); closeOverlay('pass'); closeOverlay('result'); show('splash'); }
+function openHow(){ openOverlay('how'); }
+
+/* ---------- STEP 1: how many players ---------- */
+function askCount(){
+  $('#setupStep').textContent='How many playing?';
+  var html='<p class="muted">Say a number from one to six — or say “just me”.</p>';
+  html+='<div class="numgrid">'; for(var i=1;i<=6;i++){ html+='<button onclick="onCount({n:'+i+'})">'+i+'</button>'; } html+='</div>';
+  $('#setupBody').innerHTML=html;
+  STATE.reprompt=function(){ speakSeq(['How many are playing? Say a number from one to six, or say "just me".'],0.9,0,function(){ listenStep('count', onCount, 'Say a number, one to six.'); }); };
+  speakSeq(["Welcome to Draw Your Sword, hands-free!", "How many are playing? Say a number from one to six, or say 'just me'."], 0.92, 350, function(){
+    listenStep('count', onCount, 'Say a number, one to six.');
+  });
+}
+function onCount(tok){
+  if(!tok||!tok.n) return;
+  MIC.stop();
+  STATE.num=Math.max(1,Math.min(6,tok.n));
+  STATE.players=[]; STATE.idx=0;
+  sndTick();
+  askName();
+}
+
+/* ---------- STEP 2: spell the name ---------- */
+function usedColors(){ var u={}; STATE.players.forEach(function(p){u[p.color.k]=1;}); return u; }
+function freeColor(){ var u=usedColors(); for(var i=0;i<COLORS.length;i++){ if(!u[COLORS[i].k]) return COLORS[i]; } return COLORS[STATE.players.length%COLORS.length]; }
+function askName(){
+  STATE.nameBuf='';
+  var ord=STATE.num>1 ? ('Player '+(STATE.idx+1)) : 'You';
+  $('#setupStep').textContent = (STATE.num>1? ('Player '+(STATE.idx+1)+' — spell your name') : 'Spell your name');
+  renderNameBody();
+  STATE.reprompt=function(){ speakSeq(['Spell your name. Say each letter. Say "done" when finished.'],0.9,0,function(){ listenStep('letters', onLetterTok, 'Say a letter, or say "done".', 14000); }); };
+  var intro = STATE.num>1 ? (ord+', spell your name.') : 'Now, spell your name.';
+  speakSeq([intro, 'Say each letter out loud. Say "done" when you finish. Or say "skip".'], 0.9, 320, function(){
+    listenStep('letters', onLetterTok, 'Say a letter, or say "done".', 14000);
+  });
+}
+function renderNameBody(){
+  var shown = STATE.nameBuf ? esc(STATE.nameBuf) : '';
+  var pron = STATE.nameBuf.replace(/[^A-Za-z ]/g,'').length>=2 ? ('sounds like: '+esc(pronChunks(STATE.nameBuf).replace(/-/g,' · '))) : '';
+  var html='<div class="namebox">'+shown+'<span class="car">|</span></div>';
+  html+='<div class="namepron">'+pron+'</div>';
+  html+='<div class="cmdrow"><button onclick="onLetterTok({cmd:\'back\'})" class="g">⌫ Back</button><button onclick="onLetterTok({cmd:\'done\'})">✓ Done</button><button onclick="onLetterTok({cmd:\'skip\'})" class="g">Skip</button></div>';
+  html+='<details class="fallbox"><summary>⌨️ Or type the name instead</summary>'+
+        '<input class="namein" id="typeName" maxlength="16" placeholder="type name" value="'+esc(STATE.nameBuf)+'" oninput="STATE.nameBuf=this.value" onkeydown="if(event.key===\'Enter\')onLetterTok({cmd:\'done\'})">'+
+        '<div><button class="btn sm" onclick="onLetterTok({cmd:\'done\'})">Use this name ✓</button></div></details>';
+  $('#setupBody').innerHTML=html;
+}
+function onLetterTok(tok){
+  if(!tok) return;
+  if(tok.letter!=null){ if(STATE.nameBuf.length<16){ STATE.nameBuf+=tok.letter; sndTick(); } renderNameBody(); return; }
+  if(tok.cmd==='back'){ STATE.nameBuf=STATE.nameBuf.slice(0,-1); sndTick(); renderNameBody(); return; }
+  if(tok.cmd==='clear'){ STATE.nameBuf=''; renderNameBody(); return; }
+  if(tok.cmd==='skip'){ MIC.stop(); STATE.nameBuf = (STATE.num>1?('Player '+(STATE.idx+1)):'Me'); confirmName(true); return; }
+  if(tok.cmd==='done'){
+    var nm=cleanName(STATE.nameBuf);
+    if(nm.replace(/[^A-Za-z]/g,'').length<1){ speakSeq(['I did not catch a name yet. Spell your name, then say "done".'],0.92,0,function(){ listenStep('letters', onLetterTok, 'Say a letter, or say "done".', 14000); }); return; }
+    STATE.nameBuf=nm; MIC.stop(); confirmName(false);
+  }
+}
+function cleanName(s){ s=String(s||'').replace(/\s+/g,' ').trim(); if(!s) return s; return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase(); }
+
+/* ---------- STEP 3: read the name back, confirm ---------- */
+function confirmName(wasSkip){
+  var nm=STATE.nameBuf;
+  $('#setupStep').textContent='Is this right?';
+  var html='<div class="namebox" style="letter-spacing:2px">'+esc(nm)+'</div>';
+  html+='<div class="namepron">I will call you <b style="color:#fff">'+esc(nm)+'</b></div>';
+  html+='<div class="cmdrow"><button onclick="onConfirmName({yes:true})">✓ Yes, keep it</button><button onclick="onConfirmName({no:true})" class="g">↺ Spell again</button></div>';
+  $('#setupBody').innerHTML=html;
+  STATE.reprompt=function(){ sayName(nm, function(){ speakSeq(['Say "yes" to keep it, or "again" to re-spell.'],0.92,0,function(){ listenStep('confirm', onConfirmName, 'Say "yes" or "again".', 10000); }); }); };
+  var lead = wasSkip ? ['No problem.', 'I will call you '+nm+'.'] : ['Let me read that back.'];
+  speakSeq(lead, 0.92, 300, function(){
+    sayName(nm, function(){
+      speakSeq(['Did I get it right? Say "yes" to keep it, or "again" to spell it again.'], 0.92, 250, function(){
+        listenStep('confirm', onConfirmName, 'Say "yes" or "again".', 10000);
+      });
+    });
+  });
+}
+function onConfirmName(tok){
+  if(!tok) return;
+  if(tok.no){ MIC.stop(); askName(); return; }
+  if(tok.yes){ MIC.stop(); askColor(); }
+}
+
+/* ---------- STEP 4: pick a color ---------- */
+function askColor(){
+  $('#setupStep').textContent=STATE.nameBuf+' — pick a color';
+  var free=freeColor(), u=usedColors();
+  var sw=''; COLORS.forEach(function(c){ var taken=u[c.k]; sw+='<span class="sw'+(taken?'':'')+'" style="background:'+c.hex+';'+(taken?'opacity:.3;pointer-events:none':'')+'" onclick="onColor({color:COLORS_byK(\''+c.k+'\')})"><small>'+c.k+(taken?' ✓':'')+'</small></span>'; });
+  var html='<div class="swatch">'+sw+'</div><div style="height:16px"></div>';
+  $('#setupBody').innerHTML=html;
+  STATE.reprompt=function(){ speakSeq(['Pick your color. Say a color like gold, blue, green, red, purple, orange, teal, or pink.'],0.92,0,function(){ listenStep('color', onColor, 'Say a color.', 10000); }); };
+  speakSeq([STATE.nameBuf+', pick your color.', 'Say gold, blue, green, red, purple, orange, teal, or pink.'], 0.92, 280, function(){
+    listenStep('color', onColor, 'Say a color.', 10000);
+  });
+}
+function COLORS_byK(k){ for(var i=0;i<COLORS.length;i++){ if(COLORS[i].k===k) return COLORS[i]; } return COLORS[0]; }
+function onColor(tok){
+  if(!tok||!tok.color) return;
+  var c=tok.color; var u=usedColors();
+  if(u[c.k]){ // taken — pick nearest free quietly
+    c=freeColor();
+  }
+  MIC.stop(); sndTick();
+  STATE.players.push({ name:STATE.nameBuf, color:c, tier:G.tier, score:0 });
+  STATE.idx++;
+  if(STATE.idx>=STATE.num){ finishSetup(); }
+  else { speakSeq([STATE.nameBuf+' is '+c.k+'.'], 0.95, 0, function(){ askName(); }); }
+}
+
+/* ---------- finish setup ---------- */
+function finishSetup(){
+  var names=STATE.players.map(function(p){return p.name;});
+  var roster = names.length===1 ? names[0] : (names.slice(0,-1).join(', ')+' and '+names[names.length-1]);
+  $('#setupStep').textContent='Everyone is ready!';
+  $('#setupBody').innerHTML='<p class="lead">'+esc(roster)+'</p><button class="btn big" onclick="beginGame()">▶️ Start the quiz</button>';
+  STATE.reprompt=function(){ beginGame(); };
+  speakSeq(['Everyone is ready!', roster+'.', 'Let us begin the Bible quiz.'], 0.95, 300, function(){ beginGame(); });
+}
+
+/* ---------- a tiny helper that both speaks and then listens ---------- */
+function listenStep(mode, onTok, idleHint, idleMs){
+  if(!MIC.supported || MIC.denied()){ setMic('off', true); return; } // touch-only fallback
+  MIC.listen(mode, onTok, { idleMs: idleMs||9000, onIdle:function(){ toast('🎤 '+(idleHint||'I\'m listening…')); } });
+}
+
+/* ======================= GAME ======================= */
+function renderScoreboard(){
+  var sb=$('#scoreboard'); sb.innerHTML='';
+  STATE.players.forEach(function(p,i){ var el=document.createElement('span'); el.className='sb'+(i===STATE.curIdx?' me':''); el.style.background=p.color.hex; el.style.color=inkFor(p.color.hex); el.textContent=p.name+' '+(p.score||0); sb.appendChild(el); });
+}
+function setPC(p){ document.documentElement.style.setProperty('--pc',p.color.hex); document.documentElement.style.setProperty('--pc-ink', inkFor(p.color.hex)); }
+function beginGame(){
+  shutUp();
+  STATE.players.forEach(function(p){p.score=0;});
+  usedQ={};
+  STATE.order=[]; for(var i=0;i<STATE.players.length;i++){ STATE.order.push(i); }
+  STATE.seq=0;                 // which turn in the order we're on
+  show('play'); nextTurn();
+}
+function nextTurn(){
+  if(STATE.seq>=STATE.order.length){ return endGame(); }
+  STATE.curIdx=STATE.order[STATE.seq];
+  var p=STATE.players[STATE.curIdx]; setPC(p); renderScoreboard();
+  $('#turnBanner').textContent=p.name; $('#turnBanner').style.background=p.color.hex; $('#turnBanner').style.color=inkFor(p.color.hex);
+  $('#scoreChip').textContent=p.score||0;
+  // build this player's questions
+  STATE.turn={ qs:[], i:0, correct:0 };
+  for(var k=0;k<ROUND_QS;k++){ STATE.turn.qs.push(makeQuiz(p.tier)); }
+  if(STATE.players.length>1){ passHandoff(p); }
+  else { beginTurn(); }
+}
+function passHandoff(p){
+  $('#passEmoji').textContent='🤝'; $('#passTitle').textContent='Pass to '+p.name; $('#passTitle').style.color=p.color.hex;
+  $('#passSub').textContent='Hand the device over, then say “ready”';
+  openOverlay('pass');
+  STATE.reprompt=function(){ speakSeq([p.name+', say "ready" when you have the device.'],0.95,0,function(){ listenStep('ready', onReadyTok, 'Say "ready".', 12000); }); };
+  speakSeq(['Pass the device to '+p.name+'.', p.name+', say "ready" when you are holding it.'], 0.95, 350, function(){
+    listenStep('ready', onReadyTok, 'Say "ready".', 12000);
+  });
+}
+function onReadyTok(tok){ if(tok&&tok.ready){ onReady(); } }
+function onReady(){ MIC.stop(); closeOverlay('pass'); beginTurn(); }
+function beginTurn(){ STATE.turn.i=0; STATE.turn.correct=0; nextQuestion(); }
+
+function nextQuestion(){
+  var t=STATE.turn;
+  if(t.i>=t.qs.length){ return finishTurn(); }
+  $('#progbar').style.width=Math.round((t.i/t.qs.length)*100)+'%';
+  $('#feed').textContent=''; $('#feed').className='feed';
+  var q=t.qs[t.i]; STATE.q=q; q._done=false;
+  STATE.optTexts=q.options.slice();
+  var html='<div class="qcard"><span class="qtag">🧠 Bible Quiz</span><div class="qtext">'+esc(q.q)+'</div>'+(q.ref?'<div class="qref">📖 '+esc(q.ref)+'</div>':'')+'</div>';
+  html+='<div class="opts" id="optWrap">';
+  q.options.forEach(function(o,i){ html+='<button class="opt" onclick="answer('+i+')"><span class="num">'+(i+1)+'</span>'+esc(o)+'</button>'; });
+  html+='</div>';
+  $('#playArea').innerHTML=html;
+  readQuestion();
+}
+function optOrdinal(i){ return ['One','Two','Three','Four','Five'][i]||String(i+1); }
+function readQuestion(){
+  var q=STATE.q; if(!q) return;
+  var parts=[q.q, 'Here are your choices.'];
+  q.options.forEach(function(o,i){ parts.push(optOrdinal(i)+'. '+o); });
+  parts.push('Say the number, or say the answer.');
+  speakSeq(parts, 0.86, 520, function(){
+    listenStep('answer', onAnswerTok, 'Say one, two, three, or four.', 11000);
+  });
+  STATE.reprompt=function(){ MIC.stop(); readQuestion(); };
+}
+function repeatQuestion(){ MIC.stop(); readQuestion(); }
+function onAnswerTok(tok){
+  if(!tok) return;
+  if(tok.cmd==='repeat'){ MIC.stop(); readQuestion(); return; }
+  if(tok.cmd==='stop'){ MIC.stop(); toast('Voice paused — tap an answer'); setMic('off',true); return; }
+  if(tok.cmd==='pass'){ answer(-1, true); return; }
+  if(tok.n){ answer(tok.n-1, false); return; }
+}
+function answer(i, passed){
+  var q=STATE.q; if(!q || q._done) return; q._done=true;
+  MIC.stop();
+  var correct = !passed && q.options[i]===q.a;
+  var btns=$$('#optWrap .opt');
+  btns.forEach(function(b,j){ b.disabled=true; if(q.options[j]===q.a)b.classList.add('ok'); else if(j===i)b.classList.add('no'); else b.classList.add('dim'); });
+  var p=STATE.players[STATE.curIdx];
+  if(correct){ p.score=(p.score||0)+1; STATE.turn.correct++; sndGood(); flash(true, pick(['Amen! ✝️','Well done! ⚔️','Yes! 🎉','Sharp! ✨','Glory! 🙌'])); }
+  else { sndBad(); flash(false, passed?'⏭️ Passed':('📖 Answer: '+q.a)); }
+  $('#scoreChip').textContent=p.score||0; renderScoreboard();
+  // speak result, then advance
+  var say = correct ? [pick(['Amen!','Yes!','Well done!']), 'The answer is '+q.a+'.'] : [ passed?'We will pass that one.':'Not quite.', 'The answer is '+q.a+'.' ];
+  speakSeq(say, 0.9, 300, function(){ setTimeout(function(){ STATE.turn.i++; nextQuestion(); }, 450); });
+}
+function flash(ok,msg){ var f=$('#feed'); f.textContent=msg; f.className='feed '+(ok?'ok':'no'); }
+
+function finishTurn(){
+  $('#progbar').style.width='100%';
+  var p=STATE.players[STATE.curIdx];
+  STATE.seq++;
+  if(STATE.players.length>1){
+    $('#resEmoji').textContent='⚔️'; $('#resTitle').textContent=p.name+"'s turn done";
+    $('#resBody').innerHTML='<p>You got <b>'+STATE.turn.correct+' / '+STATE.turn.qs.length+'</b> right.</p>';
+    openOverlay('result');
+    $('#result .btn').style.display='none';            // hide play-again/home mid-game
+    STATE.reprompt=function(){ speakSeq(['Say "ready" to pass on.'],0.95,0,function(){ listenStep('ready', function(t){ if(t&&t.ready){ closeResultMid(); } }, 'Say "ready".', 10000); }); };
+    speakSeq([p.name+', you got '+STATE.turn.correct+' out of '+STATE.turn.qs.length+'.', 'Say "ready" to pass to the next player.'], 0.95, 350, function(){
+      listenStep('ready', function(t){ if(t&&t.ready){ closeResultMid(); } }, 'Say "ready".', 10000);
+    });
+  } else {
+    endGame();
+  }
+}
+function closeResultMid(){ MIC.stop(); $$('#result .btn').forEach(function(b){b.style.display='';}); closeOverlay('result'); nextTurn(); }
+
+function endGame(){
+  shutUp(); MIC.stop();
+  $$('#result .btn').forEach(function(b){b.style.display='';});
+  var ranked=STATE.players.slice().sort(function(a,b){return (b.score||0)-(a.score||0);});
+  var top=ranked[0].score||0; var winners=STATE.players.filter(function(p){return (p.score||0)===top;}); var tie=winners.length>1;
+  sndWin(); confetti();
+  if(STATE.players.length>1){
+    $('#resEmoji').textContent= tie?'🤝':'🏆';
+    $('#resTitle').textContent= tie?"It's a tie!":(ranked[0].name+' wins!');
+    var body='<div style="margin:8px 0">'; ranked.forEach(function(p){ var m=(p.score||0)===top?'🥇 ':'• '; body+='<div class="statline"><span>'+m+esc(p.name)+'</span><b>'+(p.score||0)+'</b></div>'; }); body+='</div>';
+    $('#resBody').innerHTML=body;
+  } else {
+    $('#resEmoji').textContent='🏆'; $('#resTitle').textContent='Victory!';
+    $('#resBody').innerHTML='<p>You scored <b>'+top+'</b>! 🎉</p><p class="muted">Keep hiding God\'s word in your heart.</p>';
+  }
+  var win = tie ? 'It is a tie! Well matched.' : (ranked[0].name+' wins with '+top+'!');
+  STATE.reprompt=function(){ speakSeq(['Say "play again", or "home".'],0.95,0,function(){ listenStep('answer', onEndTok, 'Say "play again" or "home".', 12000); }); };
+  speakSeq(['Time is up!', win, 'Say "play again" to go again, or "home" to finish.'], 0.95, 350, function(){
+    listenStep('answer', onEndTok, 'Say "play again" or "home".', 12000);
+  });
+}
+function onEndTok(tok){ if(!tok)return; if(tok.cmd==='again'){ playAgain(); } else if(tok.cmd==='home'){ quitToHome(); } }
+function playAgain(){ MIC.stop(); closeOverlay('result'); beginGame(); }
+
+/* ---------- confetti ---------- */
+var cc=$('#confetti'), cx=cc.getContext('2d'), cparts=[];
+function sizeCanvas(){ cc.width=innerWidth; cc.height=innerHeight; }
+sizeCanvas(); addEventListener('resize',sizeCanvas);
+function confetti(){ for(var i=0;i<90;i++){cparts.push({x:innerWidth/2,y:innerHeight/3,vx:(Math.random()-.5)*9,vy:Math.random()*-9-3,g:.28,c:pick(['#f4c430','#36c08a','#4aa3ff','#ff6b8a','#b084ff','#ff9f43']),s:Math.random()*7+4,life:70});} if(cparts.length)requestAnimationFrame(ctick); }
+function ctick(){ cx.clearRect(0,0,cc.width,cc.height); for(var i=cparts.length-1;i>=0;i--){var p=cparts[i]; p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.life--; cx.fillStyle=p.c; cx.fillRect(p.x,p.y,p.s,p.s); if(p.life<=0||p.y>cc.height)cparts.splice(i,1);} if(cparts.length)requestAnimationFrame(ctick); else cx.clearRect(0,0,cc.width,cc.height); }
+
+/* ---------- init ---------- */
+(function init(){
+  for(var i=0;i<20;i++){ var s=document.createElement('div'); s.className='star'; s.textContent=pick(['✦','✧','⋆','·']); s.style.left=(Math.random()*100)+'%'; s.style.top=(Math.random()*100)+'%'; s.style.animationDelay=(Math.random()*4)+'s'; s.style.fontSize=(10+Math.random()*12)+'px'; document.body.appendChild(s); }
+  document.addEventListener('click',function once(){ unlockAudio(); document.removeEventListener('click',once); });
+  if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ try{navigator.serviceWorker.register('sw.js');}catch(e){} }
+})();
+/* expose a few for inline handlers / testing */
+window.STATE=STATE; window.COLORS=COLORS; window.MATCH=MATCH; window.syllabify=syllabify; window.pronChunks=pronChunks;
+</script>
+<script src="install-button.js" defer></script>
+</body>
+</html>
